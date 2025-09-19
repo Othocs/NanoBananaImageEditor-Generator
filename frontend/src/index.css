@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-workbench-bg text-workbench-text antialiased;
+  }
+  
+  * {
+    @apply border-workbench-border;
+  }
+}
+
+@layer components {
+  .tool-button {
+    @apply w-10 h-10 flex items-center justify-center rounded-lg hover:bg-workbench-hover transition-colors cursor-pointer;
+  }
+  
+  .tool-button.active {
+    @apply bg-workbench-hover text-workbench-selected;
+  }
+  
+  .image-node {
+    @apply absolute cursor-move select-none transition-shadow;
+  }
+  
+  .image-node.selected {
+    @apply ring-2 ring-workbench-selected shadow-lg;
+  }
+}
