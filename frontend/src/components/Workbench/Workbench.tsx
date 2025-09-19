@@ -1,25 +1,30 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { Upload, Sparkles } from 'lucide-react';
 import { useWorkbenchStore } from '../../store/workbenchStore';
 import ImageNode from './ImageNode';
 import SelectionBox from './SelectionBox';
-import DrawingOverlay from './DrawingOverlay';
 import type { Position } from '../../types';
 
 const Workbench: React.FC = () => {
   const workbenchRef = useRef<HTMLDivElement>(null);
   const {
     images,
-    activeTool,
     addImage,
     clearSelection,
     selectImages,
     deleteSelected,
     selectAll,
+    setShowGenerateModal,
   } = useWorkbenchStore();
 
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<Position>({ x: 0, y: 0 });
   const [selectionEnd, setSelectionEnd] = useState<Position>({ x: 0, y: 0 });
+  const [contextMenu, setContextMenu] = useState<{ visible: boolean; x: number; y: number }>({
+    visible: false,
+    x: 0,
+    y: 0,
+  });
 
   // Handle drag and drop files
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -78,9 +83,7 @@ const Workbench: React.FC = () => {
 
   // Handle box selection
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (activeTool !== 'select') return;
-    
-    // Only start selection on empty space
+    // Only start selection on empty space (not on context menu)
     if ((e.target as HTMLElement).classList.contains('workbench-canvas')) {
       const rect = workbenchRef.current?.getBoundingClientRect();
       if (!rect) return;
@@ -165,39 +168,113 @@ const Workbench: React.FC = () => {
     input.click();
   };
 
+  // Handle right-click context menu
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
+  // Handle context menu actions
+  const handleUploadImage = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files;
+      if (files) {
+        Array.from(files).forEach(file => addImage(file));
+      }
+    };
+    input.click();
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  };
+
+  const handleGenerateImage = () => {
+    setShowGenerateModal(true);
+    setContextMenu({ visible: false, x: 0, y: 0 });
+  };
+
+  // Close context menu on click or escape
+  useEffect(() => {
+    const handleClick = () => setContextMenu({ visible: false, x: 0, y: 0 });
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setContextMenu({ visible: false, x: 0, y: 0 });
+    };
+
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClick);
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [contextMenu.visible]);
+
   return (
-    <div 
-      ref={workbenchRef}
-      className="workbench-canvas relative flex-1 overflow-hidden bg-workbench-bg"
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onMouseDown={handleMouseDown}
-      onDoubleClick={handleDoubleClick}
-    >
-      {images.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-center text-workbench-text-secondary">
-            <p className="mb-2">Double-click anywhere to create a new Block, or start with...</p>
-            <p className="text-sm">Drop images here • Paste from clipboard • Click + to add</p>
+    <>
+      <div 
+        ref={workbenchRef}
+        className="workbench-canvas relative flex-1 overflow-hidden bg-workbench-bg dot-pattern-bg"
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onMouseDown={handleMouseDown}
+        onDoubleClick={handleDoubleClick}
+        onContextMenu={handleContextMenu}
+      >
+        {images.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center text-workbench-text-secondary">
+              <p className="mb-2">Right-click to upload or generate images</p>
+              <p className="text-sm">Drop images here • Paste from clipboard • Double-click to upload</p>
+            </div>
           </div>
+        )}
+        
+        {images.map((image) => (
+          <ImageNode key={image.id} image={image} />
+        ))}
+        
+        {isSelecting && (
+          <SelectionBox
+            start={selectionStart}
+            end={selectionEnd}
+          />
+        )}
+      </div>
+
+      {contextMenu.visible && (
+        <div 
+          className="fixed z-50 bg-workbench-sidebar border border-workbench-border rounded-md shadow-lg py-1 min-w-[12rem]"
+          style={{ 
+            left: contextMenu.x, 
+            top: contextMenu.y,
+          }}
+        >
+          <button
+            onClick={handleUploadImage}
+            className="w-full text-left px-3 py-2 text-sm text-workbench-text hover:bg-workbench-hover flex items-center gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Upload Image
+          </button>
+          <div className="h-px bg-workbench-border mx-1 my-1" />
+          <button
+            onClick={handleGenerateImage}
+            className="w-full text-left px-3 py-2 text-sm text-workbench-text hover:bg-workbench-hover flex items-center gap-2"
+          >
+            <Sparkles className="h-4 w-4" />
+            Generate Image
+          </button>
         </div>
       )}
-      
-      {images.map((image) => (
-        <ImageNode key={image.id} image={image} />
-      ))}
-      
-      {isSelecting && (
-        <SelectionBox
-          start={selectionStart}
-          end={selectionEnd}
-        />
-      )}
-      
-      {activeTool === 'selectArea' && (
-        <DrawingOverlay />
-      )}
-    </div>
+    </>
   );
 };
 

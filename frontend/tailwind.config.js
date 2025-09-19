@@ -8,13 +8,13 @@ export default {
     extend: {
       colors: {
         'workbench': {
-          'bg': '#0a0a0a',
-          'sidebar': '#141414',
-          'border': '#2a2a2a',
-          'hover': '#1f1f1f',
-          'selected': '#2563eb',
-          'text': '#e5e5e5',
-          'text-secondary': '#a3a3a3',
+          'bg': '#0f0a1a',
+          'sidebar': '#1a0f2e',
+          'border': '#2a1f3a',
+          'hover': '#241a35',
+          'selected': '#8b5cf6',
+          'text': '#e5e1f0',
+          'text-secondary': '#a78bba',
         }
       },
       animation: {
