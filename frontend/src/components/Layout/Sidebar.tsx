@@ -4,7 +4,6 @@ import {
   Plus, 
   Star, 
   Square,
-  User,
   HelpCircle
 } from 'lucide-react';
 import { useWorkbenchStore } from '../../store/workbenchStore';
@@ -81,9 +80,6 @@ const Sidebar: React.FC = () => {
       <div className="mt-auto flex flex-col gap-2">
         <button className="tool-button">
           <HelpCircle size={20} />
-        </button>
-        <button className="tool-button">
-          <User size={20} />
         </button>
       </div>
     </aside>

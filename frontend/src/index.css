@@ -28,4 +28,9 @@
   .image-node.selected {
     @apply ring-2 ring-workbench-selected shadow-lg;
   }
+  
+  .dot-pattern-bg {
+    background-image: radial-gradient(circle at 1px 1px, rgba(139, 92, 246, 0.15) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
 }
