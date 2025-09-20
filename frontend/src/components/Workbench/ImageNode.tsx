@@ -1,5 +1,4 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 import type { WorkbenchImage } from '../../types';
 import { useWorkbenchStore } from '../../store/workbenchStore';
 import { screenToCanvas } from '../../utils/coordinates';
@@ -17,7 +16,6 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     updateMultipleImagePositions,
     updateImageSize,
     updateMultipleImageSizes,
-    removeImage, 
     bringToFront,
     activeTool,
     zoom,
@@ -307,10 +305,6 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     };
   }, [isResizing, resizeHandle, resizeStart, initialSizes, image.id, updateImageSize, updateMultipleImageSizes, updateImagePosition, zoom, panOffset]);
 
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    removeImage(image.id);
-  };
 
   return (
     <div
@@ -334,18 +328,10 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       />
       
       {image.selected && (
-        <>
-          <button
-            onClick={handleDelete}
-            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white transition-colors"
-          >
-            <X size={14} />
-          </button>
-          <ResizeHandles 
-            onResizeStart={handleResizeStart}
-            visible={true}
-          />
-        </>
+        <ResizeHandles 
+          onResizeStart={handleResizeStart}
+          visible={true}
+        />
       )}
       
       {image.selectionAreas.map((area) => (
