@@ -27,6 +27,7 @@ interface WorkbenchState {
   addImageFromUrl: (url: string, position?: Position) => void;
   removeImage: (id: string) => void;
   updateImagePosition: (id: string, position: Position) => void;
+  updateMultipleImagePositions: (updates: { id: string; position: Position }[]) => void;
   selectImage: (id: string, multiSelect?: boolean) => void;
   selectImages: (ids: string[]) => void;
   clearSelection: () => void;
@@ -144,6 +145,15 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       images: state.images.map(img => 
         img.id === id ? { ...img, position } : img
       )
+    }));
+  },
+  
+  updateMultipleImagePositions: (updates) => {
+    set((state) => ({
+      images: state.images.map(img => {
+        const update = updates.find(u => u.id === img.id);
+        return update ? { ...img, position: update.position } : img;
+      })
     }));
   },
   

@@ -12,16 +12,20 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
   const { 
     selectImage, 
     updateImagePosition, 
+    updateMultipleImagePositions,
     removeImage, 
     bringToFront,
     activeTool,
     zoom,
     panOffset,
-    spacePressed
+    spacePressed,
+    images,
+    selectedImageIds
   } = useWorkbenchStore();
   
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [selectedImagesOffsets, setSelectedImagesOffsets] = useState<{ id: string; offset: { x: number; y: number } }[]>([]);
   const nodeRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -32,7 +36,28 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     e.stopPropagation();
     
     const isMultiSelect = e.ctrlKey || e.metaKey;
-    selectImage(image.id, isMultiSelect);
+    
+    // Determine which images should be selected after this click
+    let imagesToMove: string[] = [];
+    
+    if (!image.selected) {
+      // If clicking on an unselected image
+      if (isMultiSelect) {
+        // Add to selection
+        selectImage(image.id, true);
+        imagesToMove = [...selectedImageIds, image.id];
+      } else {
+        // Replace selection with just this image
+        selectImage(image.id, false);
+        imagesToMove = [image.id];
+      }
+    } else {
+      // Clicking on an already selected image - move all selected images
+      imagesToMove = selectedImageIds.includes(image.id) 
+        ? selectedImageIds 
+        : [...selectedImageIds, image.id];
+    }
+    
     bringToFront(image.id);
     
     const viewportRect = nodeRef.current?.closest('.viewport')?.getBoundingClientRect();
@@ -45,6 +70,20 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       viewportRect
     );
     
+    // Calculate offsets for all images that will be moved
+    const offsets = imagesToMove.map(id => {
+      const img = images.find(i => i.id === id);
+      if (!img) return null;
+      return {
+        id,
+        offset: {
+          x: canvasPos.x - img.position.x,
+          y: canvasPos.y - img.position.y
+        }
+      };
+    }).filter(Boolean) as { id: string; offset: { x: number; y: number } }[];
+    
+    setSelectedImagesOffsets(offsets);
     setIsDragging(true);
     setDragStart({
       x: canvasPos.x - image.position.x,
@@ -66,16 +105,29 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
         viewportRect
       );
       
-      const newPosition = {
-        x: canvasPos.x - dragStart.x,
-        y: canvasPos.y - dragStart.y
-      };
-      
-      updateImagePosition(image.id, newPosition);
+      // If multiple images are selected, move them all together
+      if (selectedImagesOffsets.length > 1) {
+        const updates = selectedImagesOffsets.map(item => ({
+          id: item.id,
+          position: {
+            x: canvasPos.x - item.offset.x,
+            y: canvasPos.y - item.offset.y
+          }
+        }));
+        updateMultipleImagePositions(updates);
+      } else {
+        // Single image movement
+        const newPosition = {
+          x: canvasPos.x - dragStart.x,
+          y: canvasPos.y - dragStart.y
+        };
+        updateImagePosition(image.id, newPosition);
+      }
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      setSelectedImagesOffsets([]);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -85,7 +137,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragStart, image.id, updateImagePosition, zoom, panOffset]);
+  }, [isDragging, dragStart, selectedImagesOffsets, image.id, updateImagePosition, updateMultipleImagePositions, zoom, panOffset]);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
