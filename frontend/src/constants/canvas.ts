@@ -9,6 +9,10 @@ export const CANVAS_CONFIG = {
   // Maximum image size when adding to canvas
   MAX_IMAGE_SIZE: 400,
   
+  // Image size constraints for resizing
+  MIN_IMAGE_SIZE: 20,
+  MAX_RESIZE_SIZE: 2000,
+  
   // Zoom constraints
   MIN_ZOOM: 0.1,
   MAX_ZOOM: 5,

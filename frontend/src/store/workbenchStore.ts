@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { WorkbenchImage, Tool, Position, SelectionArea } from '../types';
+import type { WorkbenchImage, Tool, Position, SelectionArea, Size } from '../types';
 import { CANVAS_CONFIG } from '../constants/canvas';
 
 interface WorkbenchState {
@@ -28,6 +28,8 @@ interface WorkbenchState {
   removeImage: (id: string) => void;
   updateImagePosition: (id: string, position: Position) => void;
   updateMultipleImagePositions: (updates: { id: string; position: Position }[]) => void;
+  updateImageSize: (id: string, size: Size) => void;
+  updateMultipleImageSizes: (updates: { id: string; size: Size }[]) => void;
   selectImage: (id: string, multiSelect?: boolean) => void;
   selectImages: (ids: string[]) => void;
   clearSelection: () => void;
@@ -153,6 +155,40 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       images: state.images.map(img => {
         const update = updates.find(u => u.id === img.id);
         return update ? { ...img, position: update.position } : img;
+      })
+    }));
+  },
+  
+  updateImageSize: (id, size) => {
+    set((state) => ({
+      images: state.images.map(img => 
+        img.id === id 
+          ? { 
+              ...img, 
+              size: {
+                width: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, size.width)),
+                height: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, size.height))
+              } 
+            } 
+          : img
+      )
+    }));
+  },
+  
+  updateMultipleImageSizes: (updates) => {
+    set((state) => ({
+      images: state.images.map(img => {
+        const update = updates.find(u => u.id === img.id);
+        if (update) {
+          return { 
+            ...img, 
+            size: {
+              width: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, update.size.width)),
+              height: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, update.size.height))
+            }
+          };
+        }
+        return img;
       })
     }));
   },
