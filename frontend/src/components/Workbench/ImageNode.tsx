@@ -320,10 +320,17 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
   }, [isResizing, resizeHandle, resizeStart, initialSizes, image.id, updateImageSize, updateMultipleImageSizes, updateImagePosition, zoom, panOffset]);
 
 
-  // Calculate image display properties when cropped
+  // Calculate image display properties
   const getImageStyle = () => {
-    if (image.isCropped && image.cropData && image.originalSize) {
-      // Simply position the original image to show only the cropped area
+    if (image.isCropping && image.originalSize) {
+      // When cropping, show the full original image
+      return {
+        width: `${image.originalSize.width}px`,
+        height: `${image.originalSize.height}px`,
+        position: 'relative' as const
+      };
+    } else if (image.isCropped && image.cropData && image.originalSize && !image.isCropping) {
+      // When cropped (not cropping), show only the cropped area
       return {
         width: `${image.originalSize.width}px`,
         height: `${image.originalSize.height}px`,
@@ -342,11 +349,11 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       style={{
         left: image.position.x,
         top: image.position.y,
-        width: image.size.width,
-        height: image.size.height,
+        width: image.isCropping && image.originalSize ? image.originalSize.width : image.size.width,
+        height: image.isCropping && image.originalSize ? image.originalSize.height : image.size.height,
         zIndex: image.zIndex,
         cursor: image.isCropping ? 'default' : (activeTool === 'select' && !spacePressed) ? 'move' : 'default',
-        overflow: image.isCropped ? 'hidden' : 'visible'
+        overflow: image.isCropped && !image.isCropping ? 'hidden' : 'visible'
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
@@ -354,7 +361,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       <img 
         src={image.url} 
         alt="Workbench item"
-        className={image.isCropped ? '' : 'w-full h-full object-contain'}
+        className={image.isCropping || (image.isCropped && !image.isCropping) ? '' : 'w-full h-full object-contain'}
         style={getImageStyle()}
         draggable={false}
       />
