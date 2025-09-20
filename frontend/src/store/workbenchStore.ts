@@ -10,9 +10,18 @@ interface WorkbenchState {
   showGenerateModal: boolean;
   isDragging: boolean;
   dragSelection: { start: Position; end: Position } | null;
+  zoom: number;
+  panOffset: Position;
+  isPanning: boolean;
+  spacePressed: boolean;
   
   // Actions
   setActiveTool: (tool: Tool) => void;
+  setZoom: (zoom: number) => void;
+  setPanOffset: (offset: Position) => void;
+  resetView: () => void;
+  setIsPanning: (panning: boolean) => void;
+  setSpacePressed: (pressed: boolean) => void;
   addImage: (file: File) => void;
   addImageFromUrl: (url: string) => void;
   removeImage: (id: string) => void;
@@ -38,8 +47,22 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   showGenerateModal: false,
   isDragging: false,
   dragSelection: null,
+  zoom: 1,
+  panOffset: { x: 0, y: 0 },
+  isPanning: false,
+  spacePressed: false,
   
   setActiveTool: (tool) => set({ activeTool: tool }),
+  
+  setZoom: (zoom) => set({ zoom }),
+  
+  setPanOffset: (offset) => set({ panOffset: offset }),
+  
+  resetView: () => set({ zoom: 1, panOffset: { x: 0, y: 0 } }),
+  
+  setIsPanning: (panning) => set({ isPanning: panning }),
+  
+  setSpacePressed: (pressed) => set({ spacePressed: pressed }),
   
   addImage: (file) => {
     const id = uuidv4();

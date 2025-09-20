@@ -42,7 +42,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
     setIsVisible(true);
   };
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = () => {
     // Only close context menu, don't prevent other clicks
     if (isVisible) {
       setIsVisible(false);
