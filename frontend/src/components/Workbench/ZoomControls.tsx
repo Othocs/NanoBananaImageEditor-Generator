@@ -1,9 +1,10 @@
 import React from 'react';
-import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Home } from 'lucide-react';
 import { useWorkbenchStore } from '../../store/workbenchStore';
+import { CANVAS_SIZE } from '../../constants/canvas';
 
 const ZoomControls: React.FC = () => {
-  const { zoom, setZoom, resetView } = useWorkbenchStore();
+  const { zoom, setZoom, resetView, setPanOffset } = useWorkbenchStore();
 
   const handleZoomIn = () => {
     // Increment by 10%
@@ -19,6 +20,20 @@ const ZoomControls: React.FC = () => {
 
   const formatZoomPercentage = () => {
     return `${Math.round(zoom * 100)}%`;
+  };
+
+  const handleRecenter = () => {
+    // Get viewport dimensions
+    const viewport = document.querySelector('.viewport');
+    if (viewport) {
+      const rect = viewport.getBoundingClientRect();
+      // Center the canvas in the viewport
+      const centerOffset = {
+        x: rect.width / 2 - (CANVAS_SIZE * zoom) / 2,
+        y: rect.height / 2 - (CANVAS_SIZE * zoom) / 2
+      };
+      setPanOffset(centerOffset);
+    }
   };
 
   return (
@@ -50,6 +65,13 @@ const ZoomControls: React.FC = () => {
         title="Fit to screen"
       >
         <Maximize2 size={18} />
+      </button>
+      <button
+        className="p-2 rounded-md hover:bg-workbench-hover text-workbench-text transition-colors"
+        onClick={handleRecenter}
+        title="Recenter view"
+      >
+        <Home size={18} />
       </button>
     </div>
   );

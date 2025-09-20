@@ -66,10 +66,12 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
         viewportRect
       );
       
-      updateImagePosition(image.id, {
+      const newPosition = {
         x: canvasPos.x - dragStart.x,
         y: canvasPos.y - dragStart.y
-      });
+      };
+      
+      updateImagePosition(image.id, newPosition);
     };
 
     const handleMouseUp = () => {

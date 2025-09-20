@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { WorkbenchImage, Tool, Position, SelectionArea } from '../types';
+import { CANVAS_CONFIG } from '../constants/canvas';
 
 interface WorkbenchState {
   images: WorkbenchImage[];
@@ -71,20 +72,23 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       const img = new Image();
       img.onload = () => {
         // Calculate size while maintaining aspect ratio
-        const MAX_SIZE = 400;
+        const MAX_SIZE = CANVAS_CONFIG.MAX_IMAGE_SIZE;
         const scale = Math.min(MAX_SIZE / img.width, MAX_SIZE / img.height, 1);
         const width = img.width * scale;
         const height = img.height * scale;
+        
+        // Determine initial position - place randomly in a large area
+        const initialPosition = position || { 
+          x: Math.random() * 3000, 
+          y: Math.random() * 3000
+        };
         
         set((state) => ({
           images: [...state.images, {
             id,
             url: e.target?.result as string,
             file,
-            position: position || { 
-              x: Math.random() * 400 + 100, 
-              y: Math.random() * 400 + 100 
-            },
+            position: initialPosition,
             size: { width, height },
             selected: false,
             selectionAreas: [],
@@ -107,14 +111,17 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       const width = img.width * scale;
       const height = img.height * scale;
       
+      // Determine initial position - place randomly in a large area
+      const initialPosition = position || { 
+        x: Math.random() * 3000, 
+        y: Math.random() * 3000
+      };
+      
       set((state) => ({
         images: [...state.images, {
           id,
           url,
-          position: position || { 
-            x: Math.random() * 400 + 100, 
-            y: Math.random() * 400 + 100 
-          },
+          position: initialPosition,
           size: { width, height },
           selected: false,
           selectionAreas: [],
