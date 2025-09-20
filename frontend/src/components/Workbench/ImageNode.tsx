@@ -107,7 +107,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       <img 
         src={image.url} 
         alt="Workbench item"
-        className="w-full h-full object-contain rounded-lg"
+        className="w-full h-full object-contain"
         draggable={false}
       />
       

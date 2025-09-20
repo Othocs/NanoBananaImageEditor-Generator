@@ -22,8 +22,8 @@ interface WorkbenchState {
   resetView: () => void;
   setIsPanning: (panning: boolean) => void;
   setSpacePressed: (pressed: boolean) => void;
-  addImage: (file: File) => void;
-  addImageFromUrl: (url: string) => void;
+  addImage: (file: File, position?: Position) => void;
+  addImageFromUrl: (url: string, position?: Position) => void;
   removeImage: (id: string) => void;
   updateImagePosition: (id: string, position: Position) => void;
   selectImage: (id: string, multiSelect?: boolean) => void;
@@ -64,25 +64,28 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   
   setSpacePressed: (pressed) => set({ spacePressed: pressed }),
   
-  addImage: (file) => {
+  addImage: (file, position) => {
     const id = uuidv4();
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
+        // Calculate size while maintaining aspect ratio
+        const MAX_SIZE = 400;
+        const scale = Math.min(MAX_SIZE / img.width, MAX_SIZE / img.height, 1);
+        const width = img.width * scale;
+        const height = img.height * scale;
+        
         set((state) => ({
           images: [...state.images, {
             id,
             url: e.target?.result as string,
             file,
-            position: { 
+            position: position || { 
               x: Math.random() * 400 + 100, 
               y: Math.random() * 400 + 100 
             },
-            size: { 
-              width: Math.min(img.width, 400), 
-              height: Math.min(img.height, 400) * (img.height / img.width) 
-            },
+            size: { width, height },
             selected: false,
             selectionAreas: [],
             zIndex: state.images.length
@@ -94,22 +97,25 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
     reader.readAsDataURL(file);
   },
   
-  addImageFromUrl: (url) => {
+  addImageFromUrl: (url, position) => {
     const id = uuidv4();
     const img = new Image();
     img.onload = () => {
+      // Calculate size while maintaining aspect ratio
+      const MAX_SIZE = 400;
+      const scale = Math.min(MAX_SIZE / img.width, MAX_SIZE / img.height, 1);
+      const width = img.width * scale;
+      const height = img.height * scale;
+      
       set((state) => ({
         images: [...state.images, {
           id,
           url,
-          position: { 
+          position: position || { 
             x: Math.random() * 400 + 100, 
             y: Math.random() * 400 + 100 
           },
-          size: { 
-            width: Math.min(img.width, 400), 
-            height: Math.min(img.height, 400) * (img.height / img.width) 
-          },
+          size: { width, height },
           selected: false,
           selectionAreas: [],
           zIndex: state.images.length

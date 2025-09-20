@@ -43,6 +43,8 @@ const Workbench: React.FC = () => {
   });
   const [panStart, setPanStart] = useState<Position>({ x: 0, y: 0 });
   const [initialPanOffset, setInitialPanOffset] = useState<Position>({ x: 0, y: 0 });
+  const [lastMousePosition, setLastMousePosition] = useState<Position>({ x: 500, y: 500 });
+  const [contextMenuCanvasPosition, setContextMenuCanvasPosition] = useState<Position>({ x: 500, y: 500 });
 
   // Center the canvas on mount
   useEffect(() => {
@@ -140,13 +142,23 @@ const Workbench: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const dropPosition = screenToCanvas(
+      { x: e.clientX, y: e.clientY },
+      zoom,
+      panOffset,
+      rect
+    );
+    
     const files = Array.from(e.dataTransfer.files);
     files.forEach(file => {
       if (file.type.startsWith('image/')) {
-        addImage(file);
+        addImage(file, dropPosition);
       }
     });
-  }, [addImage]);
+  }, [addImage, zoom, panOffset]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -163,7 +175,7 @@ const Workbench: React.FC = () => {
         if (item.type.startsWith('image/')) {
           const file = item.getAsFile();
           if (file) {
-            addImage(file);
+            addImage(file, lastMousePosition);
           }
         }
       }
@@ -171,7 +183,7 @@ const Workbench: React.FC = () => {
 
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [addImage]);
+  }, [addImage, lastMousePosition]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -310,8 +322,18 @@ const Workbench: React.FC = () => {
   }, [isSelecting, selectionStart, selectionEnd, images, selectImages, zoom, panOffset]);
 
   // Handle double-click to add image
-  const handleDoubleClick = () => {
+  const handleDoubleClick = (e: React.MouseEvent) => {
     if (activeTool === 'hand' || spacePressed) return;
+    
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const clickPosition = screenToCanvas(
+      { x: e.clientX, y: e.clientY },
+      zoom,
+      panOffset,
+      rect
+    );
     
     const input = document.createElement('input');
     input.type = 'file';
@@ -320,7 +342,7 @@ const Workbench: React.FC = () => {
     input.onchange = (e) => {
       const files = (e.target as HTMLInputElement).files;
       if (files) {
-        Array.from(files).forEach(file => addImage(file));
+        Array.from(files).forEach(file => addImage(file, clickPosition));
       }
     };
     input.click();
@@ -329,6 +351,18 @@ const Workbench: React.FC = () => {
   // Handle right-click context menu
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (rect) {
+      const canvasPos = screenToCanvas(
+        { x: e.clientX, y: e.clientY },
+        zoom,
+        panOffset,
+        rect
+      );
+      setContextMenuCanvasPosition(canvasPos);
+    }
+    
     setContextMenu({
       visible: true,
       x: e.clientX,
@@ -345,7 +379,7 @@ const Workbench: React.FC = () => {
     input.onchange = (e) => {
       const files = (e.target as HTMLInputElement).files;
       if (files) {
-        Array.from(files).forEach(file => addImage(file));
+        Array.from(files).forEach(file => addImage(file, contextMenuCanvasPosition));
       }
     };
     input.click();
@@ -374,6 +408,25 @@ const Workbench: React.FC = () => {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [contextMenu.visible]);
+
+  // Track mouse position for image placement
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = viewportRef.current?.getBoundingClientRect();
+      if (rect) {
+        const canvasPos = screenToCanvas(
+          { x: e.clientX, y: e.clientY },
+          zoom,
+          panOffset,
+          rect
+        );
+        setLastMousePosition(canvasPos);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, [zoom, panOffset]);
 
   // Update cursor based on tool
   useEffect(() => {
