@@ -3,10 +3,16 @@ import { Upload, Sparkles } from 'lucide-react';
 import { useWorkbenchStore } from '../../store/workbenchStore';
 import ImageNode from './ImageNode';
 import SelectionBox from './SelectionBox';
+import Toolbar from './Toolbar';
+import ZoomControls from './ZoomControls';
 import type { Position } from '../../types';
+import { screenToCanvas, calculateNewPanOffset, clampZoom } from '../../utils/coordinates';
+
+const CANVAS_SIZE = 2000;
 
 const Workbench: React.FC = () => {
-  const workbenchRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const {
     images,
     addImage,
@@ -15,6 +21,16 @@ const Workbench: React.FC = () => {
     deleteSelected,
     selectAll,
     setShowGenerateModal,
+    zoom,
+    setZoom,
+    panOffset,
+    setPanOffset,
+    activeTool,
+    setActiveTool,
+    isPanning,
+    setIsPanning,
+    spacePressed,
+    setSpacePressed,
   } = useWorkbenchStore();
 
   const [isSelecting, setIsSelecting] = useState(false);
@@ -25,6 +41,99 @@ const Workbench: React.FC = () => {
     x: 0,
     y: 0,
   });
+  const [panStart, setPanStart] = useState<Position>({ x: 0, y: 0 });
+  const [initialPanOffset, setInitialPanOffset] = useState<Position>({ x: 0, y: 0 });
+
+  // Center the canvas on mount
+  useEffect(() => {
+    if (viewportRef.current) {
+      const rect = viewportRef.current.getBoundingClientRect();
+      const initialOffset = {
+        x: rect.width / 2 - (CANVAS_SIZE * zoom) / 2,
+        y: rect.height / 2 - (CANVAS_SIZE * zoom) / 2
+      };
+      setPanOffset(initialOffset);
+    }
+  }, []);
+
+  // Handle space key for temporary hand tool
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat && !spacePressed) {
+        e.preventDefault();
+        setSpacePressed(true);
+        if (activeTool !== 'hand') {
+          document.body.style.cursor = 'grab';
+        }
+      } else if (e.key === 'v' || e.key === 'V') {
+        setActiveTool('select');
+      } else if (e.key === 'h' || e.key === 'H') {
+        setActiveTool('hand');
+      } else if ((e.ctrlKey || e.metaKey)) {
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault();
+          setZoom(clampZoom(zoom + 0.1));
+        } else if (e.key === '-') {
+          e.preventDefault();
+          setZoom(clampZoom(zoom - 0.1));
+        } else if (e.key === '0') {
+          e.preventDefault();
+          setZoom(1);
+          if (viewportRef.current) {
+            const rect = viewportRef.current.getBoundingClientRect();
+            setPanOffset({
+              x: rect.width / 2 - CANVAS_SIZE / 2,
+              y: rect.height / 2 - CANVAS_SIZE / 2
+            });
+          }
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        setSpacePressed(false);
+        setIsPanning(false);
+        document.body.style.cursor = 'default';
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [spacePressed, activeTool, zoom]);
+
+  // Handle mouse wheel zoom
+  const handleWheel = useCallback((e: WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const rect = viewportRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const delta = e.deltaY * -0.01;
+      const scaleFactor = Math.pow(2, delta);
+      const newZoom = clampZoom(zoom * scaleFactor);
+      
+      const mousePos = { x: e.clientX, y: e.clientY };
+      const canvasPoint = screenToCanvas(mousePos, zoom, panOffset, rect);
+      const newOffset = calculateNewPanOffset(canvasPoint, zoom, newZoom, mousePos, rect);
+      
+      setZoom(newZoom);
+      setPanOffset(newOffset);
+    }
+  }, [zoom, panOffset]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    
+    viewport.addEventListener('wheel', handleWheel, { passive: false });
+    return () => viewport.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
 
   // Handle drag and drop files
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -81,21 +190,31 @@ const Workbench: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [deleteSelected, selectAll, clearSelection]);
 
-  // Handle box selection
+  // Handle mouse down for selection or panning
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only start selection on empty space (not on context menu)
-    if ((e.target as HTMLElement).classList.contains('workbench-canvas')) {
-      const rect = workbenchRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      
-      const startPos = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      };
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const isHandTool = activeTool === 'hand' || spacePressed;
+    
+    if (isHandTool) {
+      // Start panning
+      setIsPanning(true);
+      setPanStart({ x: e.clientX, y: e.clientY });
+      setInitialPanOffset(panOffset);
+      document.body.style.cursor = 'grabbing';
+    } else if ((e.target as HTMLElement).classList.contains('canvas')) {
+      // Start selection box
+      const canvasPos = screenToCanvas(
+        { x: e.clientX, y: e.clientY },
+        zoom,
+        panOffset,
+        rect
+      );
       
       setIsSelecting(true);
-      setSelectionStart(startPos);
-      setSelectionEnd(startPos);
+      setSelectionStart(canvasPos);
+      setSelectionEnd(canvasPos);
       
       if (!e.ctrlKey && !e.metaKey) {
         clearSelection();
@@ -103,17 +222,54 @@ const Workbench: React.FC = () => {
     }
   };
 
+  // Handle mouse move for panning
+  useEffect(() => {
+    if (!isPanning) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - panStart.x;
+      const deltaY = e.clientY - panStart.y;
+      
+      setPanOffset({
+        x: initialPanOffset.x + deltaX,
+        y: initialPanOffset.y + deltaY
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsPanning(false);
+      if (activeTool === 'hand' || spacePressed) {
+        document.body.style.cursor = 'grab';
+      } else {
+        document.body.style.cursor = 'default';
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isPanning, panStart, initialPanOffset, activeTool, spacePressed]);
+
+  // Handle box selection
   useEffect(() => {
     if (!isSelecting) return;
 
     const handleMouseMove = (e: MouseEvent) => {
-      const rect = workbenchRef.current?.getBoundingClientRect();
+      const rect = viewportRef.current?.getBoundingClientRect();
       if (!rect) return;
       
-      setSelectionEnd({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
-      });
+      const canvasPos = screenToCanvas(
+        { x: e.clientX, y: e.clientY },
+        zoom,
+        panOffset,
+        rect
+      );
+      
+      setSelectionEnd(canvasPos);
     };
 
     const handleMouseUp = () => {
@@ -151,10 +307,12 @@ const Workbench: React.FC = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isSelecting, selectionStart, selectionEnd, images, selectImages]);
+  }, [isSelecting, selectionStart, selectionEnd, images, selectImages, zoom, panOffset]);
 
   // Handle double-click to add image
   const handleDoubleClick = () => {
+    if (activeTool === 'hand' || spacePressed) return;
+    
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
@@ -217,36 +375,64 @@ const Workbench: React.FC = () => {
     };
   }, [contextMenu.visible]);
 
+  // Update cursor based on tool
+  useEffect(() => {
+    if (activeTool === 'hand' || spacePressed) {
+      document.body.style.cursor = isPanning ? 'grabbing' : 'grab';
+    } else {
+      document.body.style.cursor = 'default';
+    }
+
+    return () => {
+      document.body.style.cursor = 'default';
+    };
+  }, [activeTool, spacePressed, isPanning]);
+
   return (
     <>
+      <Toolbar />
+      <ZoomControls />
       <div 
-        ref={workbenchRef}
-        className="workbench-canvas relative flex-1 overflow-hidden bg-workbench-bg dot-pattern-bg"
+        ref={viewportRef}
+        className="viewport relative flex-1 overflow-hidden bg-workbench-bg viewport-dot-pattern"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onMouseDown={handleMouseDown}
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
       >
-        {images.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center text-workbench-text-secondary">
-              <p className="mb-2">Right-click to upload or generate images</p>
-              <p className="text-sm">Drop images here • Paste from clipboard • Double-click to upload</p>
+        <div
+          ref={canvasRef}
+          className="canvas absolute bg-transparent"
+          style={{
+            width: `${CANVAS_SIZE}px`,
+            height: `${CANVAS_SIZE}px`,
+            transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+            transformOrigin: '0 0',
+            transition: 'none',
+            zIndex: 1,
+          }}
+        >
+          {images.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center text-workbench-text-secondary">
+                <p className="mb-2">Right-click to upload or generate images</p>
+                <p className="text-sm">Drop images here • Paste from clipboard • Double-click to upload</p>
+              </div>
             </div>
-          </div>
-        )}
-        
-        {images.map((image) => (
-          <ImageNode key={image.id} image={image} />
-        ))}
-        
-        {isSelecting && (
-          <SelectionBox
-            start={selectionStart}
-            end={selectionEnd}
-          />
-        )}
+          )}
+          
+          {images.map((image) => (
+            <ImageNode key={image.id} image={image} />
+          ))}
+          
+          {isSelecting && (
+            <SelectionBox
+              start={selectionStart}
+              end={selectionEnd}
+            />
+          )}
+        </div>
       </div>
 
       {contextMenu.visible && (

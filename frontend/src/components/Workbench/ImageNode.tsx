@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { WorkbenchImage } from '../../types';
 import { useWorkbenchStore } from '../../store/workbenchStore';
+import { screenToCanvas } from '../../utils/coordinates';
 
 interface ImageNodeProps {
   image: WorkbenchImage;
@@ -13,7 +14,10 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     updateImagePosition, 
     removeImage, 
     bringToFront,
-    activeTool 
+    activeTool,
+    zoom,
+    panOffset,
+    spacePressed
   } = useWorkbenchStore();
   
   const [isDragging, setIsDragging] = useState(false);
@@ -21,6 +25,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (activeTool === 'hand' || spacePressed) return;
     if (activeTool !== 'select') return;
     
     e.preventDefault();
@@ -30,10 +35,20 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     selectImage(image.id, isMultiSelect);
     bringToFront(image.id);
     
+    const viewportRect = nodeRef.current?.closest('.viewport')?.getBoundingClientRect();
+    if (!viewportRect) return;
+    
+    const canvasPos = screenToCanvas(
+      { x: e.clientX, y: e.clientY },
+      zoom,
+      panOffset,
+      viewportRect
+    );
+    
     setIsDragging(true);
     setDragStart({
-      x: e.clientX - image.position.x,
-      y: e.clientY - image.position.y
+      x: canvasPos.x - image.position.x,
+      y: canvasPos.y - image.position.y
     });
   };
 
@@ -41,9 +56,19 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     if (!isDragging) return;
 
     const handleMouseMove = (e: MouseEvent) => {
+      const viewportRect = nodeRef.current?.closest('.viewport')?.getBoundingClientRect();
+      if (!viewportRect) return;
+      
+      const canvasPos = screenToCanvas(
+        { x: e.clientX, y: e.clientY },
+        zoom,
+        panOffset,
+        viewportRect
+      );
+      
       updateImagePosition(image.id, {
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
+        x: canvasPos.x - dragStart.x,
+        y: canvasPos.y - dragStart.y
       });
     };
 
@@ -58,7 +83,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragStart, image.id, updateImagePosition]);
+  }, [isDragging, dragStart, image.id, updateImagePosition, zoom, panOffset]);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -75,7 +100,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
         width: image.size.width,
         height: image.size.height,
         zIndex: image.zIndex,
-        cursor: activeTool === 'select' ? 'move' : 'default'
+        cursor: (activeTool === 'select' && !spacePressed) ? 'move' : 'default'
       }}
       onMouseDown={handleMouseDown}
     >
