@@ -32,9 +32,8 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
   const [selectedImagesOffsets, setSelectedImagesOffsets] = useState<{ id: string; offset: { x: number; y: number } }[]>([]);
   const [isResizing, setIsResizing] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<ResizeHandle | null>(null);
-  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0, initialX: 0, initialY: 0 });
   const [initialSizes, setInitialSizes] = useState<{ id: string; width: number; height: number }[]>([]);
-  const [aspectRatioLocked, setAspectRatioLocked] = useState(false);
   const nodeRef = useRef<HTMLDivElement>(null);
 
   const handleResizeStart = (handle: ResizeHandle, e: React.MouseEvent) => {
@@ -67,7 +66,9 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       x: canvasPos.x,
       y: canvasPos.y,
       width: image.size.width,
-      height: image.size.height
+      height: image.size.height,
+      initialX: image.position.x,
+      initialY: image.position.y
     });
     setInitialSizes(sizes);
   };
@@ -201,104 +202,91 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       const deltaX = canvasPos.x - resizeStart.x;
       const deltaY = canvasPos.y - resizeStart.y;
       
-      let newWidth = resizeStart.width;
-      let newHeight = resizeStart.height;
-      let newX = image.position.x;
-      let newY = image.position.y;
+      // Calculate the scale based on which corner is being dragged
+      // We use the maximum of x or y delta to maintain aspect ratio
+      let scale = 1;
       
-      // Calculate new dimensions based on handle
       switch (resizeHandle) {
-        case 'e':
-          newWidth = resizeStart.width + deltaX;
-          break;
-        case 'w':
-          newWidth = resizeStart.width - deltaX;
-          newX = image.position.x + deltaX;
-          break;
-        case 's':
-          newHeight = resizeStart.height + deltaY;
-          break;
-        case 'n':
-          newHeight = resizeStart.height - deltaY;
-          newY = image.position.y + deltaY;
-          break;
         case 'se':
-          newWidth = resizeStart.width + deltaX;
-          newHeight = resizeStart.height + deltaY;
+          // Bottom-right: scale based on positive deltas
+          scale = Math.max(
+            (resizeStart.width + deltaX) / resizeStart.width,
+            (resizeStart.height + deltaY) / resizeStart.height
+          );
           break;
         case 'sw':
-          newWidth = resizeStart.width - deltaX;
-          newHeight = resizeStart.height + deltaY;
-          newX = image.position.x + deltaX;
+          // Bottom-left: scale based on negative X, positive Y
+          scale = Math.max(
+            (resizeStart.width - deltaX) / resizeStart.width,
+            (resizeStart.height + deltaY) / resizeStart.height
+          );
           break;
         case 'ne':
-          newWidth = resizeStart.width + deltaX;
-          newHeight = resizeStart.height - deltaY;
-          newY = image.position.y + deltaY;
+          // Top-right: scale based on positive X, negative Y
+          scale = Math.max(
+            (resizeStart.width + deltaX) / resizeStart.width,
+            (resizeStart.height - deltaY) / resizeStart.height
+          );
           break;
         case 'nw':
-          newWidth = resizeStart.width - deltaX;
-          newHeight = resizeStart.height - deltaY;
-          newX = image.position.x + deltaX;
-          newY = image.position.y + deltaY;
+          // Top-left: scale based on negative deltas
+          scale = Math.max(
+            (resizeStart.width - deltaX) / resizeStart.width,
+            (resizeStart.height - deltaY) / resizeStart.height
+          );
           break;
       }
       
-      // Maintain aspect ratio if shift is held
-      if (aspectRatioLocked) {
-        const aspectRatio = resizeStart.width / resizeStart.height;
-        if (['e', 'w'].includes(resizeHandle)) {
-          newHeight = newWidth / aspectRatio;
-        } else if (['n', 's'].includes(resizeHandle)) {
-          newWidth = newHeight * aspectRatio;
-        } else {
-          // For corner handles, prioritize width changes
-          newHeight = newWidth / aspectRatio;
-        }
+      // Ensure minimum scale
+      scale = Math.max(scale, 0.1);
+      
+      const newWidth = resizeStart.width * scale;
+      const newHeight = resizeStart.height * scale;
+      
+      // Calculate new position based on which corner is being dragged
+      let newX = resizeStart.initialX;
+      let newY = resizeStart.initialY;
+      
+      switch (resizeHandle) {
+        case 'se':
+          // Bottom-right: no position change
+          break;
+        case 'sw':
+          // Bottom-left: adjust X position
+          newX = resizeStart.initialX + (resizeStart.width - newWidth);
+          break;
+        case 'ne':
+          // Top-right: adjust Y position
+          newY = resizeStart.initialY + (resizeStart.height - newHeight);
+          break;
+        case 'nw':
+          // Top-left: adjust both X and Y
+          newX = resizeStart.initialX + (resizeStart.width - newWidth);
+          newY = resizeStart.initialY + (resizeStart.height - newHeight);
+          break;
       }
       
       // Apply to multiple images if selected
       if (initialSizes.length > 1) {
-        const scaleX = newWidth / resizeStart.width;
-        const scaleY = newHeight / resizeStart.height;
-        
-        const updates = initialSizes.map(item => {
-          const img = images.find(i => i.id === item.id);
-          if (!img) return null;
-          
-          return {
-            id: item.id,
-            size: {
-              width: item.width * scaleX,
-              height: item.height * scaleY
-            }
-          };
-        }).filter(Boolean) as { id: string; size: { width: number; height: number } }[];
+        const updates = initialSizes.map(item => ({
+          id: item.id,
+          size: {
+            width: item.width * scale,
+            height: item.height * scale
+          }
+        }));
         
         updateMultipleImageSizes(updates);
         
-        // Update position if resizing from left or top
-        if (['w', 'nw', 'sw'].includes(resizeHandle)) {
-          updateImagePosition(image.id, { x: newX, y: image.position.y });
-        }
-        if (['n', 'nw', 'ne'].includes(resizeHandle)) {
-          updateImagePosition(image.id, { x: image.position.x, y: newY });
-        }
-        if (resizeHandle === 'nw') {
+        // Only update position for the image being directly resized
+        if (newX !== resizeStart.initialX || newY !== resizeStart.initialY) {
           updateImagePosition(image.id, { x: newX, y: newY });
         }
       } else {
         // Single image resize
         updateImageSize(image.id, { width: newWidth, height: newHeight });
         
-        // Update position if resizing from left or top
-        if (['w', 'nw', 'sw'].includes(resizeHandle)) {
-          updateImagePosition(image.id, { x: newX, y: image.position.y });
-        }
-        if (['n', 'nw', 'ne'].includes(resizeHandle)) {
-          updateImagePosition(image.id, { x: image.position.x, y: newY });
-        }
-        if (resizeHandle === 'nw') {
+        if (newX !== resizeStart.initialX || newY !== resizeStart.initialY) {
           updateImagePosition(image.id, { x: newX, y: newY });
         }
       }
@@ -310,30 +298,14 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       setInitialSizes([]);
     };
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.shiftKey) {
-        setAspectRatioLocked(true);
-      }
-    };
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (!e.shiftKey) {
-        setAspectRatioLocked(false);
-      }
-    };
-
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-    document.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('keyup', handleKeyUp);
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isResizing, resizeHandle, resizeStart, initialSizes, image, aspectRatioLocked, updateImageSize, updateMultipleImageSizes, updateImagePosition, images, zoom, panOffset]);
+  }, [isResizing, resizeHandle, resizeStart, initialSizes, image.id, updateImageSize, updateMultipleImageSizes, updateImagePosition, zoom, panOffset]);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
