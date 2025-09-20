@@ -292,21 +292,27 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   
   startCropping: (id) => {
     set((state) => ({
-      images: state.images.map(img => 
-        img.id === id 
-          ? { 
-              ...img, 
-              isCropping: true,
-              cropData: img.cropData || {
-                x: 0,
-                y: 0,
-                width: img.size.width,
-                height: img.size.height
-              },
-              originalSize: img.originalSize || img.size
-            }
-          : { ...img, isCropping: false } // Ensure only one image is cropping at a time
-      )
+      images: state.images.map(img => {
+        if (img.id === id) {
+          // If image was already cropped, use the original size
+          // Otherwise, current size is the original size
+          const baseSize = img.originalSize || img.size;
+          const currentCropData = img.cropData || {
+            x: 0,
+            y: 0,
+            width: baseSize.width,
+            height: baseSize.height
+          };
+          
+          return { 
+            ...img, 
+            isCropping: true,
+            cropData: currentCropData,
+            originalSize: baseSize
+          };
+        }
+        return { ...img, isCropping: false }; // Ensure only one image is cropping at a time
+      })
     }));
   },
   
@@ -323,16 +329,16 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   applyCrop: (id) => {
     set((state) => ({
       images: state.images.map(img => {
-        if (img.id === id && img.cropData && img.originalSize) {
-          const newSize = {
-            width: img.cropData.width,
-            height: img.cropData.height
-          };
+        if (img.id === id && img.cropData) {
+          // Update the displayed size to match the crop dimensions
           return { 
             ...img, 
             isCropping: false,
             isCropped: true,
-            size: newSize
+            size: {
+              width: img.cropData.width,
+              height: img.cropData.height
+            }
           };
         }
         return img;
@@ -358,7 +364,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
             ...img, 
             isCropped: false,
             size: img.originalSize,
-            cropData: undefined
+            cropData: undefined,
+            originalSize: undefined  // Clear original size as it's no longer needed
           };
         }
         return img;

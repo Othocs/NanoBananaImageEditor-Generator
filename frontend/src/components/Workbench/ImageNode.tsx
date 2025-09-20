@@ -86,16 +86,16 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
   };
   
   const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
     if (image.isCropped) {
+      e.preventDefault();
+      e.stopPropagation();
       // Show option to remove crop
       const confirmRemove = window.confirm('Remove crop from this image?');
       if (confirmRemove) {
         removeCrop(image.id);
       }
     }
+    // Let non-cropped image right-clicks bubble up to workspace
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -337,17 +337,13 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
   // Calculate image display properties when cropped
   const getImageStyle = () => {
     if (image.isCropped && image.cropData && image.originalSize) {
-      // Scale factors for the display
-      const scaleX = image.size.width / image.cropData.width;
-      const scaleY = image.size.height / image.cropData.height;
-      
+      // Simply position the original image to show only the cropped area
       return {
-        width: `${image.originalSize.width * scaleX}px`,
-        height: `${image.originalSize.height * scaleY}px`,
-        transform: `translate(-${image.cropData.x * scaleX}px, -${image.cropData.y * scaleY}px)`,
+        width: `${image.originalSize.width}px`,
+        height: `${image.originalSize.height}px`,
         position: 'absolute' as const,
-        left: 0,
-        top: 0
+        left: `-${image.cropData.x}px`,
+        top: `-${image.cropData.y}px`
       };
     }
     return {};
