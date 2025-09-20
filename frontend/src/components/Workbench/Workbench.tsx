@@ -7,8 +7,7 @@ import Toolbar from './Toolbar';
 import ZoomControls from './ZoomControls';
 import type { Position } from '../../types';
 import { screenToCanvas, calculateNewPanOffset, clampZoom } from '../../utils/coordinates';
-
-const CANVAS_SIZE = 2000;
+import { CANVAS_SIZE } from '../../constants/canvas';
 
 const Workbench: React.FC = () => {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -74,19 +73,22 @@ const Workbench: React.FC = () => {
       } else if ((e.ctrlKey || e.metaKey)) {
         if (e.key === '=' || e.key === '+') {
           e.preventDefault();
-          setZoom(clampZoom(zoom + 0.1));
+          const newZoom = clampZoom(zoom + 0.1);
+          setZoom(newZoom);
         } else if (e.key === '-') {
           e.preventDefault();
-          setZoom(clampZoom(zoom - 0.1));
+          const newZoom = clampZoom(zoom - 0.1);
+          setZoom(newZoom);
         } else if (e.key === '0') {
           e.preventDefault();
           setZoom(1);
           if (viewportRef.current) {
             const rect = viewportRef.current.getBoundingClientRect();
-            setPanOffset({
+            const centerOffset = {
               x: rect.width / 2 - CANVAS_SIZE / 2,
               y: rect.height / 2 - CANVAS_SIZE / 2
-            });
+            };
+            setPanOffset(centerOffset);
           }
         }
       }
@@ -242,10 +244,12 @@ const Workbench: React.FC = () => {
       const deltaX = e.clientX - panStart.x;
       const deltaY = e.clientY - panStart.y;
       
-      setPanOffset({
+      const newOffset = {
         x: initialPanOffset.x + deltaX,
         y: initialPanOffset.y + deltaY
-      });
+      };
+      
+      setPanOffset(newOffset);
     };
 
     const handleMouseUp = () => {

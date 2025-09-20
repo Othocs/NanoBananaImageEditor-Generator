@@ -1,4 +1,4 @@
-import type { Position } from '../types';
+import type { Position, Size } from '../types';
 
 export const screenToCanvas = (
   screenPos: Position, 
@@ -52,4 +52,23 @@ export const calculateNewPanOffset = (
 
 export const clampZoom = (zoom: number, min: number = 0.1, max: number = 5): number => {
   return Math.max(min, Math.min(max, zoom));
+};
+
+export const constrainPanOffset = (
+  panOffset: Position,
+  _viewportSize: { width: number; height: number },
+  _zoom: number,
+  _canvasSize: number = 2000
+): Position => {
+  // No constraints - allow free panning
+  return panOffset;
+};
+
+export const constrainImagePosition = (
+  position: Position,
+  _imageSize: Size,
+  _canvasSize: number = 2000
+): Position => {
+  // No constraints - allow images anywhere
+  return position;
 };
