@@ -27,8 +27,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     startCropping,
     updateCropArea,
     applyCrop,
-    cancelCrop,
-    removeCrop
+    cancelCrop
   } = useWorkbenchStore();
   
   const [isDragging, setIsDragging] = useState(false);
@@ -83,19 +82,6 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     
     // Enter or re-enter crop mode
     startCropping(image.id);
-  };
-  
-  const handleContextMenu = (e: React.MouseEvent) => {
-    if (image.isCropped) {
-      e.preventDefault();
-      e.stopPropagation();
-      // Show option to remove crop
-      const confirmRemove = window.confirm('Remove crop from this image?');
-      if (confirmRemove) {
-        removeCrop(image.id);
-      }
-    }
-    // Let non-cropped image right-clicks bubble up to workspace
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -364,7 +350,6 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
-      onContextMenu={handleContextMenu}
     >
       <img 
         src={image.url} 

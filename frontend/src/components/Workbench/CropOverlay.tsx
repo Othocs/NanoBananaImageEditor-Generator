@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { CropData } from '../../types';
 
 interface CropOverlayProps {
@@ -25,6 +25,7 @@ const CropOverlay: React.FC<CropOverlayProps> = ({
   const [resizeHandle, setResizeHandle] = useState<CropHandle | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialCrop, setInitialCrop] = useState<CropData>(cropData);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -124,18 +125,27 @@ const CropOverlay: React.FC<CropOverlayProps> = ({
     setInitialCrop(cropData);
   };
 
-  // Handle keyboard shortcuts
+  // Handle keyboard shortcuts and click outside
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        onApply();
-      } else if (e.key === 'Escape') {
+      if (e.key === 'Escape') {
         onCancel();
       }
     };
 
+    const handleClickOutside = (e: MouseEvent) => {
+      // Check if click is outside the overlay content
+      if (overlayRef.current && !overlayRef.current.contains(e.target as Node)) {
+        onApply();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, [onApply, onCancel]);
 
   const handles: { position: CropHandle; className: string }[] = [
@@ -146,7 +156,7 @@ const CropOverlay: React.FC<CropOverlayProps> = ({
   ];
 
   return (
-    <div className="absolute inset-0 z-20">
+    <div ref={overlayRef} className="absolute inset-0 z-20">
       {/* Dark overlay for areas outside crop */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none">
         <defs>
@@ -190,22 +200,6 @@ const CropOverlay: React.FC<CropOverlayProps> = ({
         <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-white text-xs bg-black bg-opacity-75 px-2 py-1 rounded">
           {Math.round(cropData.width)} × {Math.round(cropData.height)}
         </div>
-      </div>
-
-      {/* Control buttons */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-30">
-        <button
-          onClick={onApply}
-          className="px-4 py-2 bg-workbench-selected text-white rounded hover:bg-opacity-90 transition-colors"
-        >
-          Apply Crop
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-opacity-90 transition-colors"
-        >
-          Cancel
-        </button>
       </div>
     </div>
   );
