@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { Sparkles } from 'lucide-react';
 import type { WorkbenchImage } from '../../types';
 import { useWorkbenchStore } from '../../store/workbenchStore';
 import { screenToCanvas } from '../../utils/coordinates';
@@ -27,7 +28,8 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     startCropping,
     updateCropArea,
     applyCrop,
-    cancelCrop
+    cancelCrop,
+    openPromptViewer
   } = useWorkbenchStore();
   
   const [isDragging, setIsDragging] = useState(false);
@@ -86,6 +88,12 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     
     // Enter or re-enter crop mode
     startCropping(image.id);
+  };
+  
+  const handlePromptClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    openPromptViewer(image.id);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -417,6 +425,23 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
           onResizeStart={handleResizeStart}
           visible={true}
         />
+      )}
+      
+      {/* Show prompt badge when selected and has generation context */}
+      {image.selected && image.generationContext?.prompt && !image.isCropping && (
+        <div 
+          className="prompt-badge absolute bottom-0 left-0 right-0 bg-workbench-sidebar/95 border-t border-workbench-selected px-2 py-1.5 cursor-pointer hover:bg-workbench-sidebar transition-colors"
+          onClick={handlePromptClick}
+        >
+          <div className="flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-workbench-selected flex-shrink-0" />
+            <span className="text-xs text-workbench-text truncate">
+              {image.generationContext.prompt.length > 50 
+                ? `${image.generationContext.prompt.substring(0, 50)}...` 
+                : image.generationContext.prompt}
+            </span>
+          </div>
+        </div>
       )}
       
       {image.selectionAreas.map((area) => (

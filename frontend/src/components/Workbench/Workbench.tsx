@@ -5,6 +5,8 @@ import ImageNode from './ImageNode';
 import SelectionBox from './SelectionBox';
 import Toolbar from './Toolbar';
 import ZoomControls from './ZoomControls';
+import FlowConnections from './FlowConnections';
+import PromptViewer from './PromptViewer';
 import type { Position } from '../../types';
 import { screenToCanvas, calculateNewPanOffset, clampZoom } from '../../utils/coordinates';
 import { CANVAS_SIZE } from '../../constants/canvas';
@@ -71,9 +73,9 @@ const Workbench: React.FC = () => {
         if (activeTool !== 'hand') {
           document.body.style.cursor = 'grab';
         }
-      } else if (e.key === 'v' || e.key === 'V') {
+      } else if (!isTyping && (e.key === 'v' || e.key === 'V')) {
         setActiveTool('select');
-      } else if (e.key === 'h' || e.key === 'H') {
+      } else if (!isTyping && (e.key === 'h' || e.key === 'H')) {
         setActiveTool('hand');
       } else if ((e.ctrlKey || e.metaKey)) {
         if (e.key === '=' || e.key === '+') {
@@ -199,12 +201,23 @@ const Workbench: React.FC = () => {
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        deleteSelected();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
-        e.preventDefault();
-        selectAll();
-      } else if (e.key === 'Escape') {
+      // Don't trigger shortcuts when typing in input/textarea
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || 
+                       target.tagName === 'TEXTAREA' || 
+                       target.contentEditable === 'true';
+      
+      if (!isTyping) {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          deleteSelected();
+        } else if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+          e.preventDefault();
+          selectAll();
+        }
+      }
+      
+      // Escape should work even when typing (to close modals)
+      if (e.key === 'Escape') {
         clearSelection();
       }
     };
@@ -392,7 +405,7 @@ const Workbench: React.FC = () => {
     input.onchange = (e) => {
       const files = (e.target as HTMLInputElement).files;
       if (files) {
-        Array.from(files).forEach(file => addImage(file, contextMenuCanvasPosition));
+        Array.from(files).forEach(file => addImage(file, contextMenuCanvasPosition || undefined));
       }
     };
     input.click();
@@ -488,6 +501,9 @@ const Workbench: React.FC = () => {
             </div>
           )}
           
+          {/* Flow connections render behind images */}
+          <FlowConnections />
+          
           {images.map((image) => (
             <ImageNode key={image.id} image={image} />
           ))}
@@ -526,6 +542,9 @@ const Workbench: React.FC = () => {
           </button>
         </div>
       )}
+      
+      {/* Prompt Viewer Modal */}
+      <PromptViewer />
     </>
   );
 };

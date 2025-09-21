@@ -93,7 +93,15 @@ const GeneratePrompt: React.FC = () => {
       if (data.success && data.image) {
         // Convert base64 to data URL and add to workbench at the right-click position
         const imageDataUrl = `data:image/png;base64,${data.image}`;
-        addImageFromUrl(imageDataUrl, contextMenuCanvasPosition || undefined);
+        
+        // Create generation context with the IDs of images used as context
+        const generationContext = selectedImageIds.length > 0 ? {
+          contextImageIds: selectedImageIds,
+          timestamp: Date.now(),
+          prompt: prompt
+        } : undefined;
+        
+        addImageFromUrl(imageDataUrl, contextMenuCanvasPosition || undefined, generationContext);
         
         // Clear the saved position after using it
         setContextMenuCanvasPosition(null);
