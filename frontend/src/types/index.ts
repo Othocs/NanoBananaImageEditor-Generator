@@ -21,6 +21,12 @@ export interface CropData {
   height: number; // Crop area height
 }
 
+export interface GenerationContext {
+  contextImageIds: string[];  // IDs of images used as context for generation
+  timestamp: number;           // When the image was generated
+  prompt?: string;             // The prompt used for generation
+}
+
 export interface WorkbenchImage {
   id: string;
   url: string;
@@ -34,6 +40,7 @@ export interface WorkbenchImage {
   originalSize?: Size;        // Store original dimensions before cropping
   isCropping?: boolean;       // Whether in crop mode
   isCropped?: boolean;        // Whether image is currently cropped
+  generationContext?: GenerationContext; // Track AI generation relationships
 }
 
 export type Tool = 'select' | 'hand' | 'add' | 'generate' | 'selectArea';

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { WorkbenchImage, Tool, Position, SelectionArea, Size, CropData } from '../types';
+import type { WorkbenchImage, Tool, Position, SelectionArea, Size, CropData, GenerationContext } from '../types';
 import { CANVAS_CONFIG } from '../constants/canvas';
 
 interface WorkbenchState {
@@ -16,6 +16,9 @@ interface WorkbenchState {
   isPanning: boolean;
   spacePressed: boolean;
   contextMenuCanvasPosition: Position | null;
+  showFlowConnections: boolean;
+  promptViewerOpen: boolean;
+  viewingPromptImageId: string | null;
   
   // Actions
   setActiveTool: (tool: Tool) => void;
@@ -25,7 +28,8 @@ interface WorkbenchState {
   setIsPanning: (panning: boolean) => void;
   setSpacePressed: (pressed: boolean) => void;
   addImage: (file: File, position?: Position) => void;
-  addImageFromUrl: (url: string, position?: Position) => void;
+  addImageFromUrl: (url: string, position?: Position, generationContext?: GenerationContext) => void;
+  toggleFlowConnections: () => void;
   removeImage: (id: string) => void;
   updateImagePosition: (id: string, position: Position) => void;
   updateMultipleImagePositions: (updates: { id: string; position: Position }[]) => void;
@@ -48,6 +52,8 @@ interface WorkbenchState {
   cancelCrop: (id: string) => void;
   removeCrop: (id: string) => void;
   setContextMenuCanvasPosition: (position: Position | null) => void;
+  openPromptViewer: (imageId: string) => void;
+  closePromptViewer: () => void;
 }
 
 export const useWorkbenchStore = create<WorkbenchState>((set) => ({
@@ -63,6 +69,9 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   isPanning: false,
   spacePressed: false,
   contextMenuCanvasPosition: null,
+  showFlowConnections: true,
+  promptViewerOpen: false,
+  viewingPromptImageId: null,
   
   setActiveTool: (tool) => set({ activeTool: tool }),
   
@@ -75,6 +84,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   setIsPanning: (panning) => set({ isPanning: panning }),
   
   setSpacePressed: (pressed) => set({ spacePressed: pressed }),
+  
+  toggleFlowConnections: () => set((state) => ({ showFlowConnections: !state.showFlowConnections })),
   
   addImage: (file, position) => {
     const id = uuidv4();
@@ -112,7 +123,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
     reader.readAsDataURL(file);
   },
   
-  addImageFromUrl: (url, position) => {
+  addImageFromUrl: (url, position, generationContext) => {
     const id = uuidv4();
     const img = new Image();
     img.onload = () => {
@@ -136,7 +147,8 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
           size: { width, height },
           selected: false,
           selectionAreas: [],
-          zIndex: state.images.length
+          zIndex: state.images.length,
+          generationContext
         }]
       }));
     };
@@ -177,7 +189,6 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
           // If image is cropped, need to scale original size and crop data proportionally
           if (img.isCropped && img.originalSize && img.cropData) {
             const scaleX = newWidth / img.size.width;
-            const scaleY = newHeight / img.size.height;
             // Use the same scale for both dimensions to maintain aspect ratio
             const scale = scaleX; // Both should be the same due to aspect ratio lock
             
@@ -218,7 +229,6 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
           // If image is cropped, need to scale original size and crop data proportionally
           if (img.isCropped && img.originalSize && img.cropData) {
             const scaleX = newWidth / img.size.width;
-            const scaleY = newHeight / img.size.height;
             // Use the same scale for both dimensions to maintain aspect ratio
             const scale = scaleX; // Both should be the same due to aspect ratio lock
             
@@ -451,5 +461,9 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
     }));
   },
   
-  setContextMenuCanvasPosition: (position) => set({ contextMenuCanvasPosition: position })
+  setContextMenuCanvasPosition: (position) => set({ contextMenuCanvasPosition: position }),
+  
+  openPromptViewer: (imageId) => set({ promptViewerOpen: true, viewingPromptImageId: imageId }),
+  
+  closePromptViewer: () => set({ promptViewerOpen: false, viewingPromptImageId: null })
 }));

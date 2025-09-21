@@ -1,9 +1,9 @@
 import React from 'react';
-import { MousePointer, Hand } from 'lucide-react';
+import { MousePointer, Hand, GitBranch } from 'lucide-react';
 import { useWorkbenchStore } from '../../store/workbenchStore';
 
 const Toolbar: React.FC = () => {
-  const { activeTool, setActiveTool } = useWorkbenchStore();
+  const { activeTool, setActiveTool, showFlowConnections, toggleFlowConnections } = useWorkbenchStore();
 
   return (
     <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-1 bg-workbench-sidebar backdrop-blur-sm rounded-lg shadow-lg border border-workbench-border p-1">
@@ -28,6 +28,18 @@ const Toolbar: React.FC = () => {
         title="Hand tool (H or hold Space)"
       >
         <Hand size={18} />
+      </button>
+      <div className="w-px h-6 bg-workbench-border mx-1" />
+      <button
+        className={`p-2 rounded-md transition-colors ${
+          showFlowConnections
+            ? 'bg-workbench-selected text-white'
+            : 'hover:bg-workbench-hover text-workbench-text'
+        }`}
+        onClick={toggleFlowConnections}
+        title="Toggle flow connections"
+      >
+        <GitBranch size={18} />
       </button>
     </div>
   );
