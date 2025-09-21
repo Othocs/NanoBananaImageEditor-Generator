@@ -166,17 +166,41 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   
   updateImageSize: (id, size) => {
     set((state) => ({
-      images: state.images.map(img => 
-        img.id === id 
-          ? { 
-              ...img, 
-              size: {
-                width: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, size.width)),
-                height: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, size.height))
-              } 
-            } 
-          : img
-      )
+      images: state.images.map(img => {
+        if (img.id === id) {
+          const newWidth = Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, size.width));
+          const newHeight = Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, size.height));
+          
+          // If image is cropped, need to scale original size and crop data proportionally
+          if (img.isCropped && img.originalSize && img.cropData) {
+            const scaleX = newWidth / img.size.width;
+            const scaleY = newHeight / img.size.height;
+            // Use the same scale for both dimensions to maintain aspect ratio
+            const scale = scaleX; // Both should be the same due to aspect ratio lock
+            
+            return {
+              ...img,
+              size: { width: newWidth, height: newHeight },
+              originalSize: {
+                width: img.originalSize.width * scale,
+                height: img.originalSize.height * scale
+              },
+              cropData: {
+                x: img.cropData.x * scale,
+                y: img.cropData.y * scale,
+                width: img.cropData.width * scale,
+                height: img.cropData.height * scale
+              }
+            };
+          }
+          
+          return { 
+            ...img, 
+            size: { width: newWidth, height: newHeight }
+          };
+        }
+        return img;
+      })
     }));
   },
   
@@ -185,12 +209,35 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       images: state.images.map(img => {
         const update = updates.find(u => u.id === img.id);
         if (update) {
+          const newWidth = Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, update.size.width));
+          const newHeight = Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, update.size.height));
+          
+          // If image is cropped, need to scale original size and crop data proportionally
+          if (img.isCropped && img.originalSize && img.cropData) {
+            const scaleX = newWidth / img.size.width;
+            const scaleY = newHeight / img.size.height;
+            // Use the same scale for both dimensions to maintain aspect ratio
+            const scale = scaleX; // Both should be the same due to aspect ratio lock
+            
+            return {
+              ...img,
+              size: { width: newWidth, height: newHeight },
+              originalSize: {
+                width: img.originalSize.width * scale,
+                height: img.originalSize.height * scale
+              },
+              cropData: {
+                x: img.cropData.x * scale,
+                y: img.cropData.y * scale,
+                width: img.cropData.width * scale,
+                height: img.cropData.height * scale
+              }
+            };
+          }
+          
           return { 
             ...img, 
-            size: {
-              width: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, update.size.width)),
-              height: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, update.size.height))
-            }
+            size: { width: newWidth, height: newHeight }
           };
         }
         return img;
@@ -304,11 +351,18 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
             height: baseSize.height
           };
           
+          // If the image was already cropped, adjust position to show the crop in the right place
+          const adjustedPosition = img.isCropped && img.cropData ? {
+            x: img.position.x - img.cropData.x,
+            y: img.position.y - img.cropData.y
+          } : img.position;
+          
           return { 
             ...img, 
             isCropping: true,
             cropData: currentCropData,
-            originalSize: baseSize
+            originalSize: baseSize,
+            position: adjustedPosition
           };
         }
         return { ...img, isCropping: false }; // Ensure only one image is cropping at a time
@@ -331,6 +385,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       images: state.images.map(img => {
         if (img.id === id && img.cropData) {
           // Update the displayed size to match the crop dimensions
+          // Adjust position to account for the crop offset
           return { 
             ...img, 
             isCropping: false,
@@ -338,6 +393,10 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
             size: {
               width: img.cropData.width,
               height: img.cropData.height
+            },
+            position: {
+              x: img.position.x + img.cropData.x,
+              y: img.position.y + img.cropData.y
             }
           };
         }
@@ -348,22 +407,38 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   
   cancelCrop: (id) => {
     set((state) => ({
-      images: state.images.map(img => 
-        img.id === id 
-          ? { ...img, isCropping: false }
-          : img
-      )
+      images: state.images.map(img => {
+        if (img.id === id) {
+          // If the image was already cropped, restore the position adjustment
+          const restoredPosition = img.isCropped && img.cropData ? {
+            x: img.position.x + img.cropData.x,
+            y: img.position.y + img.cropData.y
+          } : img.position;
+          
+          return { 
+            ...img, 
+            isCropping: false,
+            position: restoredPosition
+          };
+        }
+        return img;
+      })
     }));
   },
   
   removeCrop: (id) => {
     set((state) => ({
       images: state.images.map(img => {
-        if (img.id === id && img.originalSize) {
+        if (img.id === id && img.originalSize && img.cropData) {
+          // When removing crop, adjust position back to original top-left
           return { 
             ...img, 
             isCropped: false,
             size: img.originalSize,
+            position: {
+              x: img.position.x - img.cropData.x,
+              y: img.position.y - img.cropData.y
+            },
             cropData: undefined,
             originalSize: undefined  // Clear original size as it's no longer needed
           };
