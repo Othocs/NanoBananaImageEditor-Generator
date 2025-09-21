@@ -1,6 +1,7 @@
 from typing import List
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+import os
 
 
 class Settings(BaseSettings):
@@ -9,10 +10,10 @@ class Settings(BaseSettings):
     
     # Server Configuration
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = int(os.getenv("PORT", "8000"))  # Railway sets PORT env var
     
-    # CORS Configuration
-    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    # CORS Configuration (optional - empty means allow all origins)
+    cors_origins: str = ""
     
     # File Upload Configuration
     max_file_size: int = 10485760  # 10MB
@@ -33,7 +34,11 @@ class Settings(BaseSettings):
     
     @property
     def cors_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+        # If cors_origins is empty or not set, allow all origins
+        if not self.cors_origins or self.cors_origins.strip() == "":
+            return ["*"]
+        # Otherwise, parse the comma-separated list
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
     
     @property
     def allowed_extensions_list(self) -> List[str]:

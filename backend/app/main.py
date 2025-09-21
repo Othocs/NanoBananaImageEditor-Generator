@@ -111,28 +111,15 @@ async def log_requests(request: Request, call_next):
 
 
 # Configure CORS - MUST be added LAST (executes FIRST in middleware stack)
-if settings.debug:
-    # Development mode: Allow all origins for easier testing
-    logger.info("CORS: Allowing all origins (debug mode)")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],  # Allow all origins in development
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-        expose_headers=["*"]
-    )
-else:
-    # Production mode: Use specific origins from configuration
-    logger.info(f"CORS: Allowing specific origins: {settings.cors_origins_list}")
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins_list,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allow_headers=["*"],
-        expose_headers=["*"]
-    )
+logger.info(f"CORS: Configured origins: {settings.cors_origins_list}")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins_list,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
 
 
 # Include routers
