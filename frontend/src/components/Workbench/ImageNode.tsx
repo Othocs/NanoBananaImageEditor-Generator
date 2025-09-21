@@ -1,10 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { X } from 'lucide-react';
 import type { WorkbenchImage } from '../../types';
 import { useWorkbenchStore } from '../../store/workbenchStore';
 import { screenToCanvas } from '../../utils/coordinates';
 import ResizeHandles from './ResizeHandles';
 import type { ResizeHandle } from './ResizeHandles';
+import CropOverlay from './CropOverlay';
 
 interface ImageNodeProps {
   image: WorkbenchImage;
@@ -17,14 +17,17 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     updateMultipleImagePositions,
     updateImageSize,
     updateMultipleImageSizes,
-    removeImage, 
     bringToFront,
     activeTool,
     zoom,
     panOffset,
     spacePressed,
     images,
-    selectedImageIds
+    selectedImageIds,
+    startCropping,
+    updateCropArea,
+    applyCrop,
+    cancelCrop
   } = useWorkbenchStore();
   
   const [isDragging, setIsDragging] = useState(false);
@@ -73,9 +76,18 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     setInitialSizes(sizes);
   };
 
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Enter or re-enter crop mode
+    startCropping(image.id);
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (activeTool === 'hand' || spacePressed) return;
     if (activeTool !== 'select') return;
+    if (image.isCropping) return; // Don't allow dragging while cropping
     
     e.preventDefault();
     e.stopPropagation();
@@ -307,45 +319,64 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
     };
   }, [isResizing, resizeHandle, resizeStart, initialSizes, image.id, updateImageSize, updateMultipleImageSizes, updateImagePosition, zoom, panOffset]);
 
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    removeImage(image.id);
+
+  // Calculate image display properties when cropped
+  const getImageStyle = () => {
+    if (image.isCropped && image.cropData && image.originalSize) {
+      // Simply position the original image to show only the cropped area
+      return {
+        width: `${image.originalSize.width}px`,
+        height: `${image.originalSize.height}px`,
+        position: 'absolute' as const,
+        left: `-${image.cropData.x}px`,
+        top: `-${image.cropData.y}px`
+      };
+    }
+    return {};
   };
 
   return (
     <div
       ref={nodeRef}
-      className={`image-node ${image.selected ? 'selected' : ''}`}
+      className={`image-node ${image.selected ? 'selected' : ''} ${image.isCropping ? 'cropping' : ''}`}
       style={{
         left: image.position.x,
         top: image.position.y,
         width: image.size.width,
         height: image.size.height,
         zIndex: image.zIndex,
-        cursor: (activeTool === 'select' && !spacePressed) ? 'move' : 'default'
+        cursor: image.isCropping ? 'default' : (activeTool === 'select' && !spacePressed) ? 'move' : 'default',
+        overflow: image.isCropped ? 'hidden' : 'visible'
       }}
       onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
     >
       <img 
         src={image.url} 
         alt="Workbench item"
-        className="w-full h-full object-contain"
+        className={image.isCropped ? '' : 'w-full h-full object-contain'}
+        style={getImageStyle()}
         draggable={false}
       />
       
-      {image.selected && (
-        <>
-          <button
-            onClick={handleDelete}
-            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white transition-colors"
-          >
-            <X size={14} />
-          </button>
-          <ResizeHandles 
-            onResizeStart={handleResizeStart}
-            visible={true}
-          />
-        </>
+      {/* Show crop overlay when in crop mode */}
+      {image.isCropping && image.cropData && (
+        <CropOverlay
+          imageWidth={image.originalSize?.width || image.size.width}
+          imageHeight={image.originalSize?.height || image.size.height}
+          cropData={image.cropData}
+          onCropUpdate={(newCrop) => updateCropArea(image.id, newCrop)}
+          onApply={() => applyCrop(image.id)}
+          onCancel={() => cancelCrop(image.id)}
+        />
+      )}
+      
+      {/* Show resize handles only when selected and not cropping */}
+      {image.selected && !image.isCropping && (
+        <ResizeHandles 
+          onResizeStart={handleResizeStart}
+          visible={true}
+        />
       )}
       
       {image.selectionAreas.map((area) => (

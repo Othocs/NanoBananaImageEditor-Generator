@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { WorkbenchImage, Tool, Position, SelectionArea, Size } from '../types';
+import type { WorkbenchImage, Tool, Position, SelectionArea, Size, CropData } from '../types';
 import { CANVAS_CONFIG } from '../constants/canvas';
 
 interface WorkbenchState {
@@ -41,6 +41,11 @@ interface WorkbenchState {
   setDragSelection: (selection: { start: Position; end: Position } | null) => void;
   addSelectionArea: (imageId: string, area: SelectionArea) => void;
   clearSelectionAreas: (imageId: string) => void;
+  startCropping: (id: string) => void;
+  updateCropArea: (id: string, cropData: CropData) => void;
+  applyCrop: (id: string) => void;
+  cancelCrop: (id: string) => void;
+  removeCrop: (id: string) => void;
 }
 
 export const useWorkbenchStore = create<WorkbenchState>((set) => ({
@@ -282,6 +287,89 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
           ? { ...img, selectionAreas: [] }
           : img
       )
+    }));
+  },
+  
+  startCropping: (id) => {
+    set((state) => ({
+      images: state.images.map(img => {
+        if (img.id === id) {
+          // If image was already cropped, use the original size
+          // Otherwise, current size is the original size
+          const baseSize = img.originalSize || img.size;
+          const currentCropData = img.cropData || {
+            x: 0,
+            y: 0,
+            width: baseSize.width,
+            height: baseSize.height
+          };
+          
+          return { 
+            ...img, 
+            isCropping: true,
+            cropData: currentCropData,
+            originalSize: baseSize
+          };
+        }
+        return { ...img, isCropping: false }; // Ensure only one image is cropping at a time
+      })
+    }));
+  },
+  
+  updateCropArea: (id, cropData) => {
+    set((state) => ({
+      images: state.images.map(img => 
+        img.id === id 
+          ? { ...img, cropData }
+          : img
+      )
+    }));
+  },
+  
+  applyCrop: (id) => {
+    set((state) => ({
+      images: state.images.map(img => {
+        if (img.id === id && img.cropData) {
+          // Update the displayed size to match the crop dimensions
+          return { 
+            ...img, 
+            isCropping: false,
+            isCropped: true,
+            size: {
+              width: img.cropData.width,
+              height: img.cropData.height
+            }
+          };
+        }
+        return img;
+      })
+    }));
+  },
+  
+  cancelCrop: (id) => {
+    set((state) => ({
+      images: state.images.map(img => 
+        img.id === id 
+          ? { ...img, isCropping: false }
+          : img
+      )
+    }));
+  },
+  
+  removeCrop: (id) => {
+    set((state) => ({
+      images: state.images.map(img => {
+        if (img.id === id && img.originalSize) {
+          return { 
+            ...img, 
+            isCropped: false,
+            size: img.originalSize,
+            cropData: undefined,
+            originalSize: undefined  // Clear original size as it's no longer needed
+          };
+        }
+        return img;
+      })
     }));
   }
 }));
