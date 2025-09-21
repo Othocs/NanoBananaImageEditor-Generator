@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { WorkbenchImage, Tool, Position, SelectionArea } from '../types';
+import type { WorkbenchImage, Tool, Position, SelectionArea, Size } from '../types';
+import { CANVAS_CONFIG } from '../constants/canvas';
 
 interface WorkbenchState {
   images: WorkbenchImage[];
@@ -10,13 +11,25 @@ interface WorkbenchState {
   showGenerateModal: boolean;
   isDragging: boolean;
   dragSelection: { start: Position; end: Position } | null;
+  zoom: number;
+  panOffset: Position;
+  isPanning: boolean;
+  spacePressed: boolean;
   
   // Actions
   setActiveTool: (tool: Tool) => void;
-  addImage: (file: File) => void;
-  addImageFromUrl: (url: string) => void;
+  setZoom: (zoom: number) => void;
+  setPanOffset: (offset: Position) => void;
+  resetView: () => void;
+  setIsPanning: (panning: boolean) => void;
+  setSpacePressed: (pressed: boolean) => void;
+  addImage: (file: File, position?: Position) => void;
+  addImageFromUrl: (url: string, position?: Position) => void;
   removeImage: (id: string) => void;
   updateImagePosition: (id: string, position: Position) => void;
+  updateMultipleImagePositions: (updates: { id: string; position: Position }[]) => void;
+  updateImageSize: (id: string, size: Size) => void;
+  updateMultipleImageSizes: (updates: { id: string; size: Size }[]) => void;
   selectImage: (id: string, multiSelect?: boolean) => void;
   selectImages: (ids: string[]) => void;
   clearSelection: () => void;
@@ -38,28 +51,48 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   showGenerateModal: false,
   isDragging: false,
   dragSelection: null,
+  zoom: 1,
+  panOffset: { x: 0, y: 0 },
+  isPanning: false,
+  spacePressed: false,
   
   setActiveTool: (tool) => set({ activeTool: tool }),
   
-  addImage: (file) => {
+  setZoom: (zoom) => set({ zoom }),
+  
+  setPanOffset: (offset) => set({ panOffset: offset }),
+  
+  resetView: () => set({ zoom: 1, panOffset: { x: 0, y: 0 } }),
+  
+  setIsPanning: (panning) => set({ isPanning: panning }),
+  
+  setSpacePressed: (pressed) => set({ spacePressed: pressed }),
+  
+  addImage: (file, position) => {
     const id = uuidv4();
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
+        // Calculate size while maintaining aspect ratio
+        const MAX_SIZE = CANVAS_CONFIG.MAX_IMAGE_SIZE;
+        const scale = Math.min(MAX_SIZE / img.width, MAX_SIZE / img.height, 1);
+        const width = img.width * scale;
+        const height = img.height * scale;
+        
+        // Determine initial position - place randomly in a large area
+        const initialPosition = position || { 
+          x: Math.random() * 3000, 
+          y: Math.random() * 3000
+        };
+        
         set((state) => ({
           images: [...state.images, {
             id,
             url: e.target?.result as string,
             file,
-            position: { 
-              x: Math.random() * 400 + 100, 
-              y: Math.random() * 400 + 100 
-            },
-            size: { 
-              width: Math.min(img.width, 400), 
-              height: Math.min(img.height, 400) * (img.height / img.width) 
-            },
+            position: initialPosition,
+            size: { width, height },
             selected: false,
             selectionAreas: [],
             zIndex: state.images.length
@@ -71,22 +104,28 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
     reader.readAsDataURL(file);
   },
   
-  addImageFromUrl: (url) => {
+  addImageFromUrl: (url, position) => {
     const id = uuidv4();
     const img = new Image();
     img.onload = () => {
+      // Calculate size while maintaining aspect ratio
+      const MAX_SIZE = 400;
+      const scale = Math.min(MAX_SIZE / img.width, MAX_SIZE / img.height, 1);
+      const width = img.width * scale;
+      const height = img.height * scale;
+      
+      // Determine initial position - place randomly in a large area
+      const initialPosition = position || { 
+        x: Math.random() * 3000, 
+        y: Math.random() * 3000
+      };
+      
       set((state) => ({
         images: [...state.images, {
           id,
           url,
-          position: { 
-            x: Math.random() * 400 + 100, 
-            y: Math.random() * 400 + 100 
-          },
-          size: { 
-            width: Math.min(img.width, 400), 
-            height: Math.min(img.height, 400) * (img.height / img.width) 
-          },
+          position: initialPosition,
+          size: { width, height },
           selected: false,
           selectionAreas: [],
           zIndex: state.images.length
@@ -108,6 +147,49 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
       images: state.images.map(img => 
         img.id === id ? { ...img, position } : img
       )
+    }));
+  },
+  
+  updateMultipleImagePositions: (updates) => {
+    set((state) => ({
+      images: state.images.map(img => {
+        const update = updates.find(u => u.id === img.id);
+        return update ? { ...img, position: update.position } : img;
+      })
+    }));
+  },
+  
+  updateImageSize: (id, size) => {
+    set((state) => ({
+      images: state.images.map(img => 
+        img.id === id 
+          ? { 
+              ...img, 
+              size: {
+                width: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, size.width)),
+                height: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, size.height))
+              } 
+            } 
+          : img
+      )
+    }));
+  },
+  
+  updateMultipleImageSizes: (updates) => {
+    set((state) => ({
+      images: state.images.map(img => {
+        const update = updates.find(u => u.id === img.id);
+        if (update) {
+          return { 
+            ...img, 
+            size: {
+              width: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, update.size.width)),
+              height: Math.max(CANVAS_CONFIG.MIN_IMAGE_SIZE, Math.min(CANVAS_CONFIG.MAX_RESIZE_SIZE, update.size.height))
+            }
+          };
+        }
+        return img;
+      })
     }));
   },
   

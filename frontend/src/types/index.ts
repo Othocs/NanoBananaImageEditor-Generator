@@ -25,7 +25,12 @@ export interface WorkbenchImage {
   zIndex: number;
 }
 
-export type Tool = 'select' | 'add' | 'generate' | 'selectArea';
+export type Tool = 'select' | 'hand' | 'add' | 'generate' | 'selectArea';
+
+export interface ViewportState {
+  zoom: number;
+  panOffset: Position;
+}
 
 export interface GeneratePromptData {
   prompt: string;
