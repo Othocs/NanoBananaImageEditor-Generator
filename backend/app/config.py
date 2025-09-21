@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     
     # API Settings
     api_timeout: int = 60
-    model_name: str = "gemini-2.5-flash-image-preview"
+    model_name: str = "models/gemini-2.5-flash-image-preview"
     
     # Application Settings
     app_title: str = "Nano Banana Image Editor API"

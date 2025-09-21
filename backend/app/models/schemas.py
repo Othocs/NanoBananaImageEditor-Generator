@@ -4,13 +4,13 @@ import base64
 
 
 class GenerationSettings(BaseModel):
-    model: str = "gemini-2.5-flash-image-preview"
+    model: str = "models/gemini-2.5-flash-image-preview"
     temperature: Optional[float] = Field(None, ge=0.0, le=2.0)
     
     class Config:
         json_schema_extra = {
             "example": {
-                "model": "gemini-2.5-flash-image-preview",
+                "model": "models/gemini-2.5-flash-image-preview",
                 "temperature": 0.8
             }
         }
@@ -67,7 +67,7 @@ class ImageResponse(BaseModel):
                 "image": "base64_encoded_image_data",
                 "metadata": {
                     "generation_time": 2.5,
-                    "model_used": "gemini-2.5-flash-image-preview",
+                    "model_used": "models/gemini-2.5-flash-image-preview",
                     "prompt_tokens": 15,
                     "image_tokens": 1290
                 }
@@ -85,6 +85,6 @@ class HealthResponse(BaseModel):
             "example": {
                 "status": "healthy",
                 "version": "0.1.0",
-                "model": "gemini-2.5-flash-image-preview"
+                "model": "models/gemini-2.5-flash-image-preview"
             }
         }

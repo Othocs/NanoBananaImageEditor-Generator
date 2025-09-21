@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Sparkles } from 'lucide-react';
 import { useWorkbenchStore } from '../../store/workbenchStore';
+import { screenToCanvas } from '../../utils/coordinates';
+import type { Position } from '../../types';
 
 interface ContextMenuProps {
   children: React.ReactNode;
+  zoom: number;
+  panOffset: Position;
+  viewportRef: React.RefObject<HTMLDivElement>;
 }
 
 interface ContextMenuPosition {
@@ -11,8 +16,8 @@ interface ContextMenuPosition {
   y: number;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
-  const { addImage, setShowGenerateModal } = useWorkbenchStore();
+const ContextMenu: React.FC<ContextMenuProps> = ({ children, zoom, panOffset, viewportRef }) => {
+  const { addImage, setShowGenerateModal, setContextMenuCanvasPosition } = useWorkbenchStore();
   const [isVisible, setIsVisible] = useState(false);
   const [position, setPosition] = useState<ContextMenuPosition>({ x: 0, y: 0 });
 
@@ -39,6 +44,19 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ children }) => {
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
     setPosition({ x: e.clientX, y: e.clientY });
+    
+    // Calculate and save canvas position for image placement
+    if (viewportRef.current) {
+      const rect = viewportRef.current.getBoundingClientRect();
+      const canvasPos = screenToCanvas(
+        { x: e.clientX, y: e.clientY },
+        zoom,
+        panOffset,
+        rect
+      );
+      setContextMenuCanvasPosition(canvasPos);
+    }
+    
     setIsVisible(true);
   };
 
