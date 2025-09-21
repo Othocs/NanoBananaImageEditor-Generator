@@ -149,10 +149,10 @@ const CropOverlay: React.FC<CropOverlayProps> = ({
   }, [onApply, onCancel]);
 
   const handles: { position: CropHandle; className: string }[] = [
-    { position: 'nw', className: 'top-0 left-0 -translate-x-1/2 -translate-y-1/2 cursor-nw-resize' },
-    { position: 'ne', className: 'top-0 right-0 translate-x-1/2 -translate-y-1/2 cursor-ne-resize' },
-    { position: 'se', className: 'bottom-0 right-0 translate-x-1/2 translate-y-1/2 cursor-se-resize' },
-    { position: 'sw', className: 'bottom-0 left-0 -translate-x-1/2 translate-y-1/2 cursor-sw-resize' },
+    { position: 'nw', className: '-top-1 -left-1 cursor-nw-resize' },
+    { position: 'ne', className: '-top-1 -right-1 cursor-ne-resize' },
+    { position: 'se', className: '-bottom-1 -right-1 cursor-se-resize' },
+    { position: 'sw', className: '-bottom-1 -left-1 cursor-sw-resize' },
   ];
 
   return (
@@ -187,19 +187,44 @@ const CropOverlay: React.FC<CropOverlayProps> = ({
           <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white opacity-30" />
         </div>
 
-        {/* Resize handles */}
+        {/* Resize handles - L-shaped corners */}
         {handles.map(({ position, className }) => (
           <div
             key={position}
-            className={`absolute w-3 h-3 bg-white border-2 border-workbench-selected rounded-full ${className}`}
+            className={`absolute ${className}`}
             onMouseDown={(e) => handleResizeStart(position, e)}
-          />
+            style={{ width: '24px', height: '24px' }}
+          >
+            {/* Invisible hit area for easier interaction */}
+            <div className="absolute inset-0" />
+            
+            {/* L-shaped corner lines */}
+            {position === 'nw' && (
+              <>
+                <div className="absolute top-0 left-0 w-5 h-1 bg-white" />
+                <div className="absolute top-0 left-0 w-1 h-5 bg-white" />
+              </>
+            )}
+            {position === 'ne' && (
+              <>
+                <div className="absolute top-0 right-0 w-5 h-1 bg-white" />
+                <div className="absolute top-0 right-0 w-1 h-5 bg-white" />
+              </>
+            )}
+            {position === 'se' && (
+              <>
+                <div className="absolute bottom-0 right-0 w-5 h-1 bg-white" />
+                <div className="absolute bottom-0 right-0 w-1 h-5 bg-white" />
+              </>
+            )}
+            {position === 'sw' && (
+              <>
+                <div className="absolute bottom-0 left-0 w-5 h-1 bg-white" />
+                <div className="absolute bottom-0 left-0 w-1 h-5 bg-white" />
+              </>
+            )}
+          </div>
         ))}
-
-        {/* Dimensions display */}
-        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-white text-xs bg-black bg-opacity-75 px-2 py-1 rounded">
-          {Math.round(cropData.width)} × {Math.round(cropData.height)}
-        </div>
       </div>
     </div>
   );

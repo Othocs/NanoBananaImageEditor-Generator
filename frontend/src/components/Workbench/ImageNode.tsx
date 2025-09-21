@@ -41,6 +41,7 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
 
   const handleResizeStart = (handle: ResizeHandle, e: React.MouseEvent) => {
     if (!image.selected) return;
+    if (activeTool !== 'select' || spacePressed) return;
     
     const viewportRect = nodeRef.current?.closest('.viewport')?.getBoundingClientRect();
     if (!viewportRect) return;
@@ -79,6 +80,9 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // Only allow cropping with select tool
+    if (activeTool !== 'select' || spacePressed) return;
     
     // Enter or re-enter crop mode
     startCropping(image.id);
@@ -150,6 +154,13 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
 
   useEffect(() => {
     if (!isDragging) return;
+    
+    // Stop dragging if tool changes to hand or space is pressed
+    if (activeTool !== 'select' || spacePressed) {
+      setIsDragging(false);
+      setSelectedImagesOffsets([]);
+      return;
+    }
 
     const handleMouseMove = (e: MouseEvent) => {
       const viewportRect = nodeRef.current?.closest('.viewport')?.getBoundingClientRect();
@@ -194,11 +205,19 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragStart, selectedImagesOffsets, image.id, updateImagePosition, updateMultipleImagePositions, zoom, panOffset]);
+  }, [isDragging, dragStart, selectedImagesOffsets, image.id, updateImagePosition, updateMultipleImagePositions, zoom, panOffset, activeTool, spacePressed]);
 
   // Handle resize
   useEffect(() => {
     if (!isResizing || !resizeHandle) return;
+    
+    // Stop resizing if tool changes to hand or space is pressed
+    if (activeTool !== 'select' || spacePressed) {
+      setIsResizing(false);
+      setResizeHandle(null);
+      setInitialSizes([]);
+      return;
+    }
 
     const handleMouseMove = (e: MouseEvent) => {
       const viewportRect = nodeRef.current?.closest('.viewport')?.getBoundingClientRect();
@@ -317,19 +336,29 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizing, resizeHandle, resizeStart, initialSizes, image.id, updateImageSize, updateMultipleImageSizes, updateImagePosition, zoom, panOffset]);
+  }, [isResizing, resizeHandle, resizeStart, initialSizes, image.id, updateImageSize, updateMultipleImageSizes, updateImagePosition, zoom, panOffset, activeTool, spacePressed]);
 
 
-  // Calculate image display properties when cropped
+  // Calculate image display properties
   const getImageStyle = () => {
-    if (image.isCropped && image.cropData && image.originalSize) {
-      // Simply position the original image to show only the cropped area
+    if (image.isCropping && image.originalSize) {
+      // When cropping, show the full original image
       return {
         width: `${image.originalSize.width}px`,
         height: `${image.originalSize.height}px`,
+        position: 'relative' as const
+      };
+    } else if (image.isCropped && image.cropData && image.originalSize && !image.isCropping) {
+      // When cropped, position the image to show only the cropped area
+      // The image should be at its original display size, positioned to show the crop
+      return {
         position: 'absolute' as const,
+        width: `${image.originalSize.width}px`,
+        height: `${image.originalSize.height}px`,
         left: `-${image.cropData.x}px`,
-        top: `-${image.cropData.y}px`
+        top: `-${image.cropData.y}px`,
+        maxWidth: 'none',
+        maxHeight: 'none'
       };
     }
     return {};
@@ -342,22 +371,33 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
       style={{
         left: image.position.x,
         top: image.position.y,
-        width: image.size.width,
-        height: image.size.height,
+        width: image.isCropping && image.originalSize ? image.originalSize.width : image.size.width,
+        height: image.isCropping && image.originalSize ? image.originalSize.height : image.size.height,
         zIndex: image.zIndex,
-        cursor: image.isCropping ? 'default' : (activeTool === 'select' && !spacePressed) ? 'move' : 'default',
-        overflow: image.isCropped ? 'hidden' : 'visible'
+        cursor: image.isCropping ? 'default' : (activeTool === 'select' && !spacePressed) ? 'move' : 'default'
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={handleDoubleClick}
     >
-      <img 
-        src={image.url} 
-        alt="Workbench item"
-        className={image.isCropped ? '' : 'w-full h-full object-contain'}
-        style={getImageStyle()}
-        draggable={false}
-      />
+      {/* Image container with overflow control */}
+      <div
+        className="absolute inset-0"
+        style={{
+          overflow: image.isCropped && !image.isCropping ? 'hidden' : 'visible'
+        }}
+      >
+        <img 
+          src={image.url} 
+          alt="Workbench item"
+          className={
+            image.isCropping || image.isCropped
+              ? '' 
+              : 'w-full h-full object-contain'
+          }
+          style={getImageStyle()}
+          draggable={false}
+        />
+      </div>
       
       {/* Show crop overlay when in crop mode */}
       {image.isCropping && image.cropData && (
@@ -371,8 +411,8 @@ const ImageNode: React.FC<ImageNodeProps> = ({ image }) => {
         />
       )}
       
-      {/* Show resize handles only when selected and not cropping */}
-      {image.selected && !image.isCropping && (
+      {/* Show resize handles only when selected, not cropping, and using select tool */}
+      {image.selected && !image.isCropping && activeTool === 'select' && !spacePressed && (
         <ResizeHandles 
           onResizeStart={handleResizeStart}
           visible={true}
