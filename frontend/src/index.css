@@ -74,4 +74,53 @@
     pointer-events: none;
     z-index: 0;
   }
+  
+  .flow-path {
+    stroke-linecap: round;
+  }
+  
+  .flow-particle {
+    transition: r 0.3s ease;
+  }
+  
+  @keyframes flow-dash {
+    to {
+      stroke-dashoffset: -24;
+    }
+  }
+  
+  @keyframes flow-pulse {
+    0%, 100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+  
+  .flow-connection-group {
+    cursor: pointer;
+  }
+  
+  .flow-connection-group:hover .flow-path {
+    filter: url(#flow-glow-hover);
+  }
+  
+  .prompt-badge {
+    backdrop-filter: blur(8px);
+    transition: all 0.2s ease;
+  }
+  
+  .prompt-badge:hover {
+    background-color: rgba(26, 15, 46, 0.98);
+  }
+  
+  .prompt-badge span {
+    display: block;
+    max-width: 100%;
+  }
+  
+  .prompt-viewer-modal {
+    backdrop-filter: blur(4px);
+  }
 }
