@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { X, Sparkles } from 'lucide-react';
 import { useWorkbenchStore } from '../../store/workbenchStore';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const GeneratePrompt: React.FC = () => {
   const { 
     showGenerateModal, 
@@ -9,38 +11,106 @@ const GeneratePrompt: React.FC = () => {
     selectedImageIds, 
     images,
     isGenerating,
-    setIsGenerating
+    setIsGenerating,
+    addImageFromUrl
   } = useWorkbenchStore();
   
   const [prompt, setPrompt] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   if (!showGenerateModal) return null;
 
   const selectedImages = images.filter(img => selectedImageIds.includes(img.id));
 
+  const imageToBase64 = async (imageUrl: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const base64 = canvas.toDataURL('image/png');
+        // Remove data URL prefix
+        const base64Data = base64.split(',')[1];
+        resolve(base64Data);
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = imageUrl;
+    });
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     
     setIsGenerating(true);
+    setError(null);
     
-    // Simulate generation process
-    console.log('Generating with:', {
-      prompt,
-      contextImages: selectedImages.map(img => img.id)
-    });
-    
-    // TODO: Connect to backend API
-    setTimeout(() => {
+    try {
+      // Convert selected images to base64
+      const contextImagesBase64: string[] = [];
+      for (const img of selectedImages) {
+        try {
+          const base64 = await imageToBase64(img.url);
+          contextImagesBase64.push(base64);
+        } catch (err) {
+          console.error(`Failed to convert image ${img.id} to base64:`, err);
+        }
+      }
+      
+      // Prepare request body
+      const requestBody = {
+        prompt: prompt,
+        context_images: contextImagesBase64.length > 0 ? contextImagesBase64 : undefined,
+        settings: {
+          temperature: 0.8
+        }
+      };
+      
+      // Call backend API
+      const response = await fetch(`${API_URL}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+      }
+      
+      if (data.success && data.image) {
+        // Convert base64 to data URL and add to workbench
+        const imageDataUrl = `data:image/png;base64,${data.image}`;
+        addImageFromUrl(imageDataUrl);
+        
+        // Close modal and reset
+        setShowGenerateModal(false);
+        setPrompt('');
+      } else {
+        throw new Error(data.error || 'Failed to generate image');
+      }
+    } catch (err) {
+      console.error('Generation error:', err);
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+    } finally {
       setIsGenerating(false);
-      setShowGenerateModal(false);
-      setPrompt('');
-      alert(`Generation started with prompt: "${prompt}" using ${selectedImages.length} image(s) as context`);
-    }, 2000);
+    }
   };
 
   const handleClose = () => {
     setShowGenerateModal(false);
     setPrompt('');
+    setError(null);
   };
 
   return (
@@ -87,6 +157,12 @@ const GeneratePrompt: React.FC = () => {
             autoFocus
           />
         </div>
+        
+        {error && (
+          <div className="mb-4 p-3 bg-red-900/20 border border-red-800 rounded-md text-red-400 text-sm">
+            {error}
+          </div>
+        )}
         
         <div className="flex gap-3">
           <button

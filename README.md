@@ -1,6 +1,6 @@
 # Nano Banana Image Editor
 
-A workbench-style web application for image generation and editing with Nano Banana.
+AI-powered image generation and editing using Google Gemini 2.5 Flash.
 
 ## Features
 
@@ -15,17 +15,38 @@ A workbench-style web application for image generation and editing with Nano Ban
   - Ctrl/Cmd+A: Select all images
   - Escape: Clear selection
 
-## Getting Started
+## Quick Start
 
-### Frontend
+### 1. Backend Setup (2 steps!)
+
+```bash
+# Install dependencies
+cd backend && uv sync
+
+# Add your API key (that's it!)
+echo "GEMINI_API_KEY=your_key_here" > .env
+```
+
+Get your free API key at: https://makersuite.google.com/app/apikey
+
+### 2. Frontend Setup
 
 ```bash
 cd frontend
 npm install
-npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+### 3. Run Everything
+
+```bash
+# Terminal 1 - Backend
+cd backend && uv run uvicorn app.main:app --reload
+
+# Terminal 2 - Frontend  
+cd frontend && npm run dev
+```
+
+App runs at `http://localhost:5173`
 
 ## Usage
 
@@ -53,7 +74,7 @@ The app will be available at `http://localhost:5173`
 ## Tech Stack
 
 - **Frontend**: React + TypeScript + Vite
-- **Styling**: Tailwind CSS
+- **Backend**: FastAPI + Python + Google Gemini
+- **Styling**: Tailwind CSS  
 - **State Management**: Zustand
-- **Icons**: Lucide React
-- **Backend**: FastAPI + Python (coming soon)
+- **Package Management**: npm (frontend), uv (backend)
