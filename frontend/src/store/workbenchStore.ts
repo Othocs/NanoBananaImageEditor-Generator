@@ -15,6 +15,7 @@ interface WorkbenchState {
   panOffset: Position;
   isPanning: boolean;
   spacePressed: boolean;
+  contextMenuCanvasPosition: Position | null;
   
   // Actions
   setActiveTool: (tool: Tool) => void;
@@ -46,6 +47,7 @@ interface WorkbenchState {
   applyCrop: (id: string) => void;
   cancelCrop: (id: string) => void;
   removeCrop: (id: string) => void;
+  setContextMenuCanvasPosition: (position: Position | null) => void;
 }
 
 export const useWorkbenchStore = create<WorkbenchState>((set) => ({
@@ -60,6 +62,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
   panOffset: { x: 0, y: 0 },
   isPanning: false,
   spacePressed: false,
+  contextMenuCanvasPosition: null,
   
   setActiveTool: (tool) => set({ activeTool: tool }),
   
@@ -446,5 +449,7 @@ export const useWorkbenchStore = create<WorkbenchState>((set) => ({
         return img;
       })
     }));
-  }
+  },
+  
+  setContextMenuCanvasPosition: (position) => set({ contextMenuCanvasPosition: position })
 }));

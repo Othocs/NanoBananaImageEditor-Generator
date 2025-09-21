@@ -30,6 +30,8 @@ const Workbench: React.FC = () => {
     setIsPanning,
     spacePressed,
     setSpacePressed,
+    setContextMenuCanvasPosition,
+    contextMenuCanvasPosition,
   } = useWorkbenchStore();
 
   const [isSelecting, setIsSelecting] = useState(false);
@@ -43,7 +45,6 @@ const Workbench: React.FC = () => {
   const [panStart, setPanStart] = useState<Position>({ x: 0, y: 0 });
   const [initialPanOffset, setInitialPanOffset] = useState<Position>({ x: 0, y: 0 });
   const [lastMousePosition, setLastMousePosition] = useState<Position>({ x: 500, y: 500 });
-  const [contextMenuCanvasPosition, setContextMenuCanvasPosition] = useState<Position>({ x: 500, y: 500 });
 
   // Center the canvas on mount
   useEffect(() => {
@@ -60,7 +61,11 @@ const Workbench: React.FC = () => {
   // Handle space key for temporary hand tool
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat && !spacePressed) {
+      // Don't prevent space when typing in input/textarea
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      
+      if (e.code === 'Space' && !e.repeat && !spacePressed && !isTyping) {
         e.preventDefault();
         setSpacePressed(true);
         if (activeTool !== 'hand') {
@@ -95,7 +100,11 @@ const Workbench: React.FC = () => {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      // Don't prevent space when typing in input/textarea
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      
+      if (e.code === 'Space' && !isTyping) {
         e.preventDefault();
         setSpacePressed(false);
         setIsPanning(false);
