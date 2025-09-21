@@ -65,12 +65,10 @@ class GeminiService:
                     pil_image.save(buffer, format='PNG')
                     buffer.seek(0)
                     
-                    # Add image as inline data
-                    contents.append(types.Part(
-                        inline_data=types.InlineData(
-                            mime_type="image/png",
-                            data=buffer.getvalue()
-                        )
+                    # Add image as inline data using the correct API
+                    contents.append(types.Part.from_bytes(
+                        data=buffer.getvalue(),
+                        mime_type="image/png"
                     ))
                     
                 logger.info(f"Added {len(context_images)} context images to prompt")

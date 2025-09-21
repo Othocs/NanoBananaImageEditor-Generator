@@ -12,7 +12,9 @@ const GeneratePrompt: React.FC = () => {
     images,
     isGenerating,
     setIsGenerating,
-    addImageFromUrl
+    addImageFromUrl,
+    contextMenuCanvasPosition,
+    setContextMenuCanvasPosition
   } = useWorkbenchStore();
   
   const [prompt, setPrompt] = useState('');
@@ -89,9 +91,12 @@ const GeneratePrompt: React.FC = () => {
       }
       
       if (data.success && data.image) {
-        // Convert base64 to data URL and add to workbench
+        // Convert base64 to data URL and add to workbench at the right-click position
         const imageDataUrl = `data:image/png;base64,${data.image}`;
-        addImageFromUrl(imageDataUrl);
+        addImageFromUrl(imageDataUrl, contextMenuCanvasPosition || undefined);
+        
+        // Clear the saved position after using it
+        setContextMenuCanvasPosition(null);
         
         // Close modal and reset
         setShowGenerateModal(false);
@@ -111,6 +116,7 @@ const GeneratePrompt: React.FC = () => {
     setShowGenerateModal(false);
     setPrompt('');
     setError(null);
+    setContextMenuCanvasPosition(null);
   };
 
   return (
