@@ -35,14 +35,15 @@ export const getZoomPoint = (
 
 export const calculateNewPanOffset = (
   zoomPoint: Position,
-  oldZoom: number,
+  _oldZoom: number,  // Kept for API compatibility, but not used in new calculation
   newZoom: number,
   mousePos: Position,
   viewportRect: DOMRect
 ): Position => {
-  const scaleDiff = newZoom - oldZoom;
-  const offsetX = -(zoomPoint.x * scaleDiff) + (mousePos.x - viewportRect.left - (zoomPoint.x * newZoom));
-  const offsetY = -(zoomPoint.y * scaleDiff) + (mousePos.y - viewportRect.top - (zoomPoint.y * newZoom));
+  // Keep the point under the cursor at the same screen position after zooming
+  // This ensures zoom is centered on the cursor location
+  const offsetX = (mousePos.x - viewportRect.left) - (zoomPoint.x * newZoom);
+  const offsetY = (mousePos.y - viewportRect.top) - (zoomPoint.y * newZoom);
   
   return {
     x: offsetX,
