@@ -122,10 +122,12 @@ const Workbench: React.FC = () => {
     };
   }, [spacePressed, activeTool, zoom]);
 
-  // Handle mouse wheel zoom
+  // Handle mouse wheel for zoom and scroll navigation
   const handleWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    
     if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
+      // Zoom with Ctrl/Cmd + scroll
       const rect = viewportRef.current?.getBoundingClientRect();
       if (!rect) return;
 
@@ -139,8 +141,26 @@ const Workbench: React.FC = () => {
       
       setZoom(newZoom);
       setPanOffset(newOffset);
+    } else if (e.shiftKey) {
+      // Horizontal panning with Shift + scroll
+      const scrollSpeed = 1;
+      const deltaX = e.deltaY * scrollSpeed;
+      setPanOffset({
+        x: panOffset.x - deltaX,
+        y: panOffset.y
+      });
+    } else {
+      // Vertical and horizontal panning with regular scroll
+      const scrollSpeed = 1;
+      // Handle both vertical scroll (deltaY) and horizontal scroll (deltaX for trackpads)
+      const deltaY = e.deltaY * scrollSpeed;
+      const deltaX = e.deltaX * scrollSpeed;
+      setPanOffset({
+        x: panOffset.x - deltaX,
+        y: panOffset.y - deltaY
+      });
     }
-  }, [zoom, panOffset]);
+  }, [zoom, panOffset, setPanOffset]);
 
   useEffect(() => {
     const viewport = viewportRef.current;

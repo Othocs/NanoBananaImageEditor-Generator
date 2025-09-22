@@ -51,10 +51,16 @@ async def generate_image(
                 metadata=result["metadata"]
             )
         else:
-            logger.error(f"Generation failed: {result.get('error')}")
+            error_message = result.get("error", "Image generation failed")
+            logger.error(f"Generation failed: {error_message}")
+            
+            # Provide more specific error message if text was returned instead of image
+            if "text instead of image" in error_message.lower():
+                error_message = "The model returned a text description instead of generating an image. Please try rephrasing your prompt or try again."
+            
             return ImageResponse(
                 success=False,
-                error=result.get("error", "Image generation failed"),
+                error=error_message,
                 metadata=result.get("metadata")
             )
             

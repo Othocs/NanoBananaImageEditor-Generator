@@ -76,36 +76,55 @@ class GeminiService:
             # Add the text prompt
             contents.append(prompt)
             
-            # Configure generation settings
-            generation_config = {}
+            # Configure generation settings with explicit image output
+            generation_config = {
+                'response_mime_type': 'image/png'  # Force image output
+            }
             if temperature is not None:
                 generation_config['temperature'] = temperature
             
+            # Add system instruction to ensure image generation
+            system_instruction = "You are an AI image generation model. Your sole function is to generate images. ALWAYS use the provided context (text descriptions and/or reference images) to generate a new image. Never return text explanations or descriptions. You must always output an image, regardless of the input. If given text, generate an image based on that text. If given images as context, use them as reference to generate a new related image."
+            
             # Generate content asynchronously
-            logger.info(f"Generating image with prompt: {prompt[:100]}...")
+            logger.info(f"Generating image with model {self.model_name}")
+            logger.debug(f"Prompt: {prompt[:200]}...")
+            logger.debug(f"Generation config: {generation_config}")
             
             response = await asyncio.to_thread(
                 self.client.models.generate_content,
                 model=self.model_name,
                 contents=contents,
                 config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
                     **generation_config
-                ) if generation_config else None
+                )
             )
             
             # Extract the generated image from response
             generated_image_data = None
+            text_response = None
             
             if response and response.candidates:
                 candidate = response.candidates[0]
                 if candidate.content and candidate.content.parts:
                     for part in candidate.content.parts:
+                        # Check for image data
                         if hasattr(part, 'inline_data') and part.inline_data:
                             generated_image_data = part.inline_data.data
+                            logger.info("Image data found in response")
                             break
+                        # Check for text response (which we don't want)
+                        elif hasattr(part, 'text') and part.text:
+                            text_response = part.text
+                            logger.warning(f"Text response received instead of image: {text_response[:200]}...")
             
             if not generated_image_data:
-                raise ValueError("No image was generated in the response")
+                error_msg = "No image was generated in the response"
+                if text_response:
+                    error_msg = f"Model returned text instead of image. Text: {text_response[:500]}"
+                    logger.error(error_msg)
+                raise ValueError(error_msg)
             
             # Convert to base64
             image_base64 = bytes_to_base64(generated_image_data)
