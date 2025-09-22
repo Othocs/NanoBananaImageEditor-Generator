@@ -21,6 +21,13 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# Set specific loggers to DEBUG level when in debug mode
+if settings.debug:
+    logging.getLogger("app.services.gemini").setLevel(logging.DEBUG)
+    logging.getLogger("app.api.endpoints.generate").setLevel(logging.DEBUG)
+    logging.getLogger("app.utils.image").setLevel(logging.DEBUG)
+    logger.info("Debug mode enabled - verbose logging active for Gemini services")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
