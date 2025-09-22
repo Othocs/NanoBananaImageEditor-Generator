@@ -73,9 +73,8 @@ class GeminiService:
                     
                 logger.info(f"Added {len(context_images)} context images to prompt")
             
-            # Enhance prompt to explicitly request image generation
-            enhanced_prompt = f"Generate an image based on this description: {prompt}\n\nIMPORTANT: You must generate and return an image, not text."
-            contents.append(enhanced_prompt)
+            # Add the text prompt
+            contents.append(prompt)
             
             # Configure generation settings with explicit image output
             generation_config = {
@@ -85,12 +84,11 @@ class GeminiService:
                 generation_config['temperature'] = temperature
             
             # Add system instruction to ensure image generation
-            system_instruction = "You are an image generation model. Always respond with generated images, never with text descriptions. Generate creative and relevant images based on the given prompts."
+            system_instruction = "You are an AI image generation model. Your sole function is to generate images. ALWAYS use the provided context (text descriptions and/or reference images) to generate a new image. Never return text explanations or descriptions. You must always output an image, regardless of the input. If given text, generate an image based on that text. If given images as context, use them as reference to generate a new related image."
             
             # Generate content asynchronously
             logger.info(f"Generating image with model {self.model_name}")
-            logger.debug(f"Original prompt: {prompt[:200]}...")
-            logger.debug(f"Enhanced prompt: {enhanced_prompt[:200]}...")
+            logger.debug(f"Prompt: {prompt[:200]}...")
             logger.debug(f"Generation config: {generation_config}")
             
             response = await asyncio.to_thread(
