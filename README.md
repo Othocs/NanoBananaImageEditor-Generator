@@ -1,13 +1,12 @@
 # Bananaboard (live at bananaboard.dev)
 
 <p align="center">
-  <img src="readmeDocuments/bananaboardlogo.png" alt="Bananaboard logo" width="400" />
+  <img src="readmeDocuments/bananaboardlogo.png" alt="Bananaboard logo" width="200" />
+</p>
+<p align="center">
+  <img src="readmeDocuments/bananaboardimage.png" alt="Bananaboard.dev" width="600" />
 </p>
 
-<div align="center">
-  <video src="readmeDocuments/bananaboard.mp4" controls width="720"></video>
-  <br/>
-</div>
 
 AI-powered image generation and editing using Google Gemini 2.5 Flash with Excalidraw-inspired workspace.
 Think of it as an easy way to generate images with AI and have a flow of your edits.
